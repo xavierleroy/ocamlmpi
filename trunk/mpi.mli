@@ -1,57 +1,39 @@
-(* Sample Caml bindings for MPI *)
+(***********************************************************************)
+(*                                                                     *)
+(*                           Objective Caml                            *)
+(*                                                                     *)
+(*            Xavier Leroy, projet Cristal, INRIA Rocquencourt         *)
+(*                                                                     *)
+(*  Copyright 1998 Institut National de Recherche en Informatique et   *)
+(*  Automatique.  Distributed only by permission.                      *)
+(*                                                                     *)
+(***********************************************************************)
+
+(* $Id$ *)
+
+(* Caml bindings for the Message Passing Interface (MPI) library *)
 
 type communicator
 
+type rank = int
+
 val comm_world: communicator
+external comm_size : communicator -> int = "caml_mpi_comm_size"
+external comm_rank : communicator -> rank = "caml_mpi_comm_rank"
 
-(* Rank of calling process in communicator *)
-val comm_rank: communicator -> int
+type tag = int
 
-(* Number of processes in communicator *)
-val comm_size: communicator -> int
+val send: 'a -> rank -> tag -> communicator -> unit
+val receive: rank -> tag -> communicator -> 'a
+val receive_status: rank -> tag -> communicator -> 'a * rank * tag
+val probe: rank -> tag -> communicator -> int * rank * tag
 
-(* Send message *)
-val send: 'a -> int (*destination*) -> int (*tag*) -> communicator -> unit
+val any_tag: tag
+val any_source: rank
 
-(* Receive message *)
-val receive: int (*source*) -> int (*tag*) -> communicator -> 'a
-
-val any_tag: int
-val any_source: int
-
-(* Same, but also return status info *)
-val receive_status: int (*source*) -> int (*tag*) -> communicator ->
-                    'a * int (*source*) * int (*tag*)
-
-(* Broadcast *)
-(* val broadcast: 'a -> int (*root*) -> communicator -> 'a *)
-val broadcast: 'a option -> communicator -> 'a
-
-(* Reduce *)
-val reduce: 'a array -> ('a -> 'a -> 'a) ->
-            int (*root proc*) -> communicator -> 'a array option
-val allreduce: 'a array -> ('a -> 'a -> 'a) ->
-               int (*root proc*) -> communicator -> 'a array
-
-(* Barrier *)
 val barrier: communicator -> unit
-
-(* Scatter, gather --- PROBLEM: how to represent the array in memory
-   in such a way that it can be scattered? *)
-
-val scatter: 'a array option -> communicator -> 'a
-val gather: 'a -> int (*root proc*) -> communicator -> 'a array option
+val broadcast: 'a option -> rank -> communicator -> 'a
+val scatter: 'a array -> rank -> communicator -> 'a
+val gather: 'a -> rank -> communicator -> 'a array
 val allgather: 'a -> communicator -> 'a array
-
-(* Constructing communicators *)
-
-type group
-
-val comm_group: communicator -> group
-val group_incl: group -> int array (* ranks of members *) -> group
-
-val comm_create: communicator -> group -> communicator
-
-val comm_split: communicator -> int (*split key*) -> int (*rank key*) -> 
-		commununicator
 
