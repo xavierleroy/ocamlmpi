@@ -20,7 +20,6 @@
 
 static void caml_mpi_finalize_comm(value v)
 {
-  printf("caml_mpi_finalize_comm %x\n", v);
   MPI_Comm_free(&Comm_val(v));
 }
 
