@@ -297,26 +297,26 @@ let _ =
 
 let test_reduceall reducefun reduceop printfun data =
   printf "%d: my data is %a" myrank printfun data; print_newline();
-  let res = reducefun data reduceop 0 comm_world in
+  let res = reducefun data reduceop comm_world in
   barrier comm_world;
   printf "%d: result of reduction is %a" myrank printfun res;
   print_newline();
   barrier comm_world
 
 let _ =
-  test_reduceall reduce_int Int_sum
+  test_reduceall allreduce_int Int_sum
               output_int
               (myrank + 1);
-  test_reduceall reduce_float Float_prod
+  test_reduceall allreduce_float Float_prod
               output_float
               (float myrank +. 1.0);
   let ia = Array.make 3 0 in
-  test_reduceall (fun d op r c -> reduce_int_array d ia op r c; ia)
+  test_reduceall (fun d op c -> allreduce_int_array d ia op c; ia)
               Int_sum
               output_int_array
               [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
   let fa = Array.make 3 0.0 in
-  test_reduceall (fun d op r c -> reduce_float_array d fa op r c; fa)
+  test_reduceall (fun d op c -> allreduce_float_array d fa op c; fa)
               Float_sum
               output_float_array
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]

@@ -43,9 +43,11 @@ value caml_mpi_send_intarray(value data, value dest, value tag, value comm)
 
 value caml_mpi_send_float(value data, value dest, value tag, value comm)
 {
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Send(&Double_val(data), Wosize_val(data) / Double_wosize, MPI_DOUBLE,
-           Int_val(dest), Int_val(tag), Comm_val(comm));
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  double * d = caml_mpi_input_floatarray(data, len);
+
+  MPI_Send(d, len, MPI_DOUBLE, Int_val(dest), Int_val(tag), Comm_val(comm));
+  caml_mpi_free_floatarray(d);
   return Val_unit;
 }
 
@@ -109,10 +111,12 @@ value caml_mpi_receive_float(value source, value tag, value comm)
 value caml_mpi_receive_floatarray(value data, value source, value tag, value comm)
 {
   MPI_Status status;
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  double * d = caml_mpi_output_floatarray(data, len);
 
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Recv(&Double_val(data), Wosize_val(data) / Double_wosize, MPI_DOUBLE,
+  MPI_Recv(d, len, MPI_DOUBLE,
            Int_val(source), Int_val(tag), Comm_val(comm), &status);
+  caml_mpi_commit_floatarray(d, data, len);
   return Val_unit;
 }
 
