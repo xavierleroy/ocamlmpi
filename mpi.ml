@@ -141,7 +141,7 @@ let broadcast v root comm =
   let myself = comm_rank comm in
   if myself = root then begin
     let data = Marshal.to_string v [Marshal.Closures] in
-    broadcast_int (String.length data) root comm;
+    ignore(broadcast_int (String.length data) root comm);
     broadcast_string data root comm;
     v
   end else begin
@@ -194,7 +194,7 @@ let scatter data root comm =
     (* Determine lengths of strings *)
     let lengths = Array.map String.length buffers in
     (* Scatter those lengths *)
-    scatter_int lengths root comm;
+    ignore(scatter_int lengths root comm);
     (* Build single buffer with all data *)
     let total_len = Array.fold_left (+) 0 lengths in
     let send_buffer = String.create total_len in
@@ -452,6 +452,29 @@ let scan_float_array src dst op comm =
   if Array.length dst <> Array.length src
   then mpi_error "Mpi.scan_float_array: array size mismatch"
   else scan_float_array src dst op comm
+
+(*** Process group management *)
+
+type group
+
+external comm_create: communicator -> group -> communicator = "caml_mpi_comm_create"
+
+external group_size: group -> int = "caml_mpi_group_size"
+external group_rank: group -> int = "caml_mpi_group_rank"
+external group_translate_ranks: group -> int array -> group -> int array = "caml_mpi_group_translate_ranks"
+
+external comm_group: communicator -> group = "caml_mpi_comm_group"
+external group_union: group -> group -> group = "caml_mpi_group_union"
+external group_intersection: group -> group -> group = "caml_mpi_group_intersection"
+external group_difference: group -> group -> group = "caml_mpi_group_difference"
+
+external group_incl: group -> int array -> group = "caml_mpi_group_incl"
+external group_excl: group -> int array -> group = "caml_mpi_group_excl"
+
+type group_range = { range_first: int; range_last: int; range_stride: int }
+
+external group_range_incl: group -> group_range array -> group = "caml_mpi_group_range_incl"
+external group_range_excl: group -> group_range array -> group = "caml_mpi_group_range_excl"
 
 (* Miscellaneous *)
 

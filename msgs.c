@@ -34,10 +34,12 @@ value caml_mpi_send(value data, value flags,
 
   Begin_root(vcomm)             /* prevent deallocation of communicator */
     output_value_to_malloc(data, flags, &buffer, &len);
+    /* This also allocates the buffer */
     enter_blocking_section();
     MPI_Send(buffer, len, MPI_BYTE, Int_val(dest), Int_val(tag), comm);
     leave_blocking_section();
   End_roots();
+  stat_free(buffer);
   return Val_unit;
 }
 
@@ -99,6 +101,7 @@ value caml_mpi_receive(value vlen, value source, value tag, value vcomm)
              Int_val(source), Int_val(tag), comm, &status);
     leave_blocking_section();
     res = input_value_from_malloc(buffer, 0);
+    /* This also deallocates the buffer */
   End_roots();
   return res;
 }

@@ -14,6 +14,7 @@
 /* Common definitions */
 
 #define Comm_val(comm) (*((MPI_Comm *) &Field(comm, 1)))
+#define Group_val(comm) (*((MPI_Group *) &Field(comm, 1)))
 
 extern value caml_mpi_alloc_comm(MPI_Comm c);
 
