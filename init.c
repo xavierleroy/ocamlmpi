@@ -55,10 +55,8 @@ value caml_mpi_init(value arguments)
   argv[i] = NULL;
   MPI_Init(&argc, &argv);
   /* Register an error handler */
-#if 0
   MPI_Errhandler_create((MPI_Handler_function *)caml_mpi_error_handler, &hdlr);
   MPI_Errhandler_set(MPI_COMM_WORLD, hdlr);
-#endif
   return Val_unit;
 }
 
@@ -72,3 +70,16 @@ value caml_mpi_wtime(value unit)
 {
   return copy_double(MPI_Wtime());
 }
+
+void caml_mpi_decode_intarray(value data, int len)
+{
+  int i;
+  for (i = 0; i < len; i++) Field(data, i) = Long_val(Field(data, i));
+}
+
+void caml_mpi_encode_intarray(value data, int len)
+{
+  int i;
+  for (i = 0; i < len; i++) Field(data, i) = Val_long(Field(data, i));
+}
+

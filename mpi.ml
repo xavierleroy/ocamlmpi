@@ -50,6 +50,15 @@ external get_undefined : unit -> int = "caml_mpi_get_undefined"
 
 let color_none = get_undefined()
 
+external cart_create:
+    communicator -> int array -> bool array -> bool -> communicator
+    = "caml_mpi_cart_create"
+external dims_create: int -> int array -> int array = "caml_mpi_dims_create"
+external cart_rank: communicator -> int array -> rank = "caml_mpi_cart_rank"
+external cart_coords:
+    communicator -> rank -> int array
+    = "caml_mpi_cart_coords"
+
 (* Point-to-point communication *)
 
 type tag = int
@@ -444,7 +453,7 @@ let scan_int_array src dst op comm =
 
 external scan_float_array:
     float array -> float array -> floatop -> communicator -> unit
-    = "caml_mpi_scan_float"
+    = "caml_mpi_scan_floatarray"
 let scan_float_array src dst op comm =
   if Array.length dst <> Array.length src
   then mpi_error "Mpi.scan_float_array: array size mismatch"

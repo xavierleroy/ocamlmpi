@@ -16,4 +16,5 @@
 #define Comm_val(comm) (*((MPI_Comm *) &Field(comm, 1)))
 
 extern value caml_mpi_alloc_comm(MPI_Comm c);
-
+extern void caml_mpi_decode_intarray(value array, int len);
+extern void caml_mpi_encode_intarray(value array, int len);
