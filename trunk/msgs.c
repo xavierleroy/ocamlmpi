@@ -77,42 +77,42 @@ value caml_mpi_receive(value buffer, value source, value tag, value comm)
   return Val_unit;
 }
 
-value caml_mpi_receive_int(value data, value dest, value tag, value comm)
+value caml_mpi_receive_int(value source, value tag, value comm)
 {
   MPI_Status status;
   long n;
 
   MPI_Recv(&n, 1, MPI_LONG,
-           Int_val(dest), Int_val(tag), Comm_val(comm), &status);
+           Int_val(source), Int_val(tag), Comm_val(comm), &status);
   return Val_long(n);
 }
 
-value caml_mpi_receive_intarray(value data, value dest, value tag, value comm)
+value caml_mpi_receive_intarray(value data, value source, value tag, value comm)
 {
   MPI_Status status;
 
   MPI_Recv(&Field(data, 0), Wosize_val(data), MPI_LONG,
-           Int_val(dest), Int_val(tag), Comm_val(comm), &status);
+           Int_val(source), Int_val(tag), Comm_val(comm), &status);
   return Val_unit;
 }
 
-value caml_mpi_receive_float(value data, value dest, value tag, value comm)
+value caml_mpi_receive_float(value source, value tag, value comm)
 {
   MPI_Status status;
   double d;
 
   MPI_Recv(&d, 1 , MPI_DOUBLE,
-           Int_val(dest), Int_val(tag), Comm_val(comm), &status);
+           Int_val(source), Int_val(tag), Comm_val(comm), &status);
   return copy_double(d);
 }
 
-value caml_mpi_receive_floatarray(value data, value dest, value tag, value comm)
+value caml_mpi_receive_floatarray(value data, value source, value tag, value comm)
 {
   MPI_Status status;
 
   /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
   MPI_Recv(&Double_val(data), Wosize_val(data) / Double_wosize, MPI_DOUBLE,
-           Int_val(dest), Int_val(tag), Comm_val(comm), &status);
+           Int_val(source), Int_val(tag), Comm_val(comm), &status);
   return Val_unit;
 }
 

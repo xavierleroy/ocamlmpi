@@ -58,20 +58,6 @@ value caml_mpi_comm_compare(value comm1, value comm2)
   return Val_bool(res);
 }
 
-value caml_mpi_comm_dup(value comm)
-{
-  MPI_Comm newcomm;
-  MPI_Comm_dup(Comm_val(comm), &newcomm);
-  return caml_mpi_alloc_comm(newcomm);
-}
-
-value caml_mpi_comm_create(value comm, value group)
-{
-  MPI_Comm newcomm;
-  MPI_Comm_create(Comm_val(comm), Group_val(group), &newcomm);
-  return caml_mpi_alloc_comm(newcomm);
-}
-
 value caml_mpi_comm_split(value comm, value color, value key)
 {
   MPI_Comm newcomm;

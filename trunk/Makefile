@@ -11,12 +11,13 @@ CFLAGS=-I$(CAMLLIB) -I$(MPI)/include -O -g -Wall
 COBJS=init.o comm.o msgs.o collcomm.o
 OBJS=mpi.cmo
 
+MPILIBDIR=/usr/local/lib/LINUX/ch_p4
 
-all: libmpi.a mpi.cma mpi.cmxa
+all: libcamlmpi.a mpi.cma mpi.cmxa
 
-libmpi.a: $(COBJS)
-	rm -f libmpi.a
-	ar rc libmpi.a $(COBJS)
+libcamlmpi.a: $(COBJS)
+	rm -f $@
+	ar rc $@ $(COBJS)
 
 mpi.cma: $(OBJS)
 	$(OCAMLC) -a -o mpi.cma $(OBJS)
@@ -32,6 +33,12 @@ mpi.cmxa: $(OBJS:.cmo=.cmx)
 	$(OCAMLC) -c $<
 .ml.cmx:
 	$(OCAMLOPT) -c $<
+
+testmpi: test.ml mpi.cma libcamlmpi.a
+	ocamlc -custom -o testmpi unix.cma mpi.cma test.ml libcamlmpi.a -ccopt -L$(MPILIBDIR) -cclib -lmpi -cclib -lunix
+
+test: testmpi
+	mpirun -np 5 ./testmpi
 
 clean:
 	rm -f *.cm* *.o libmpi.a
