@@ -1,8 +1,49 @@
+(***********************************************************************)
+(*                                                                     *)
+(*                           Objective Caml                            *)
+(*                                                                     *)
+(*            Xavier Leroy, projet Cristal, INRIA Rocquencourt         *)
+(*                                                                     *)
+(*  Copyright 1998 Institut National de Recherche en Informatique et   *)
+(*  Automatique.  Distributed only by permission.                      *)
+(*                                                                     *)
+(***********************************************************************)
+
+(* $Id$ *)
+
+(* Initialization *)
+
+exception Error of string
+
+external init : string array -> unit = "caml_mpi_init"
+external finalize : unit -> unit = "caml_mpi_finalize"
+
+let _ =
+  Callback.register_exception "Mpi.Error" (Error "");
+  init Sys.argv;
+  at_exit finalize
+
+(* Communicators *)
+
+type communicator
+type rank = int
+
+external get_comm_world : unit -> communicator = "caml_mpi_get_comm_world"
+
+let comm_world = get_comm_world()
+
+external comm_size : communicator -> int = "caml_mpi_comm_size"
+external comm_rank : communicator -> int = "caml_mpi_comm_rank"
+
+(* Point-to-point communication *)
+
+type tag = int
+
 external send_string: string -> int -> int -> communicator -> unit
        = "caml_mpi_send"
 
 let send data dest tag comm =
-  let s = Marshal.to_string data in
+  let s = Marshal.to_string data [Marshal.Closures] in
   send_string s dest tag comm
 
 external probe: int -> int -> communicator -> int * int * int
@@ -15,7 +56,7 @@ let receive source tag comm =
   let (len, actual_source, actual_tag) = probe source tag comm in
   let buffer = String.create len in
   receive_string buffer source tag comm;
-  let (v, _) = Marshal.from_string buffer 0 in
+  let v = Marshal.from_string buffer 0 in
   v
 
 let receive_status source tag comm =
@@ -25,122 +66,158 @@ let receive_status source tag comm =
   let (v, _) = Marshal.from_string buffer 0 in
   (v, actual_source, actual_tag)
 
-external get_any_tag : unit -> int = "caml_mpi_any_tag"
-external get_any_source : unit -> int = "caml_mpi_any_source"
+external get_any_tag : unit -> int = "caml_mpi_get_any_tag"
+external get_any_source : unit -> int = "caml_mpi_get_any_source"
 
 let any_tag = get_any_tag()
 let any_source = get_any_source()
 
+(* Barrier *)
+
+external barrier : communicator -> unit = "caml_mpi_barrier"
+
+(* Broadcast *)
+
 external broadcast_string: string -> int -> communicator -> unit
 	 = "caml_mpi_broadcast"
-external broadcast_uint: int -> int -> communicator -> int
-	 = "caml_mpi_broadcast_uint"
+external broadcast_int: int -> int -> communicator -> int
+	 = "caml_mpi_broadcast_long"
 
 let broadcast data root comm =
   let myself = comm_rank comm in
-  match data with
-    Some v when myself = root ->
-      (* Originating process marshals message, broadcast length, then
-         broadcast data *)
-      let data = Marshal.to_string v in
-      broadcast_uint (String.length data) root comm;
-      broadcast_string data root comm;
-      v
-  | None when myself <> root ->
-      (* Other processes receive length, allocate buffer, receive data,
-         and unmarshal it. *)
-      let len = broadcast_uint 0 root comm in
-      let data = String.create len in
-      broadcast_string data root comm;
-      let (v, _) = Marshal.from_string data 0 in
-      v
-  | _ -> invalid_arg "Mpi.broadcast"
+  if myself = root then begin
+    match data with
+      None -> invalid_arg "Mpi.broadcast"
+    | Some v ->
+        (* Originating process marshals message, broadcast length, then
+           broadcast data *)
+        let data = Marshal.to_string v [Marshal.Closures] in
+        broadcast_int (String.length data) root comm;
+        broadcast_string data root comm;
+        v
+  end else begin
+    (* Other processes receive length, allocate buffer, receive data,
+       and unmarshal it. *)
+    let len = broadcast_int 0 root comm in
+    let data = String.create len in
+    broadcast_string data root comm;
+    Marshal.from_string data 0
+  end
 
-external scatter_string: string -> string -> int -> communicator
-	= "caml_mpi_scatter"
+(* Scatter *)
+
+external scatter_string:
+  string -> int array -> string -> int -> communicator -> unit
+  = "caml_mpi_scatter"
+
+external scatter_long: int array -> int -> communicator -> int
+  = "caml_mpi_scatter_long"
 
 let scatter data root comm =
   let myself = comm_rank comm in
   let nprocs = comm_size comm in
-  let len = ref 0 in
-  let send_buffer =
-    if myself = root then begin
-      (* Check correct length for array *)
-      if Array.length data <> nprocs then invalid_arg "Mpi.scatter";
-      (* Marshal data to strings *)
-      let buffers = Array.map Marshal.to_string data in
-      (* Determine max length of string *)
-      let len = ref 0 in
-      for i = 0 to nprocs - 1 do
-        let l = String.length buffers.(i) in
-        if l > !len then len := l
-      done;
-      (* Broadcast that length *)
-      broadcast_uint !len root comm;
-      (* Build single buffer *)
-      let buffer = String.create (!len * nprocs) in
-      for i = 0 to nprocs - 1 do
-        String.blit buffers.[i] 0
-                    buffer (i * !len)
-                    (String.length buffers.[i])
-      done;
-      buffer
-    end else
-      (* Receive buffer length *)
-      len := broadcast_uint 0 root comm;
-      ""
-    end in
-  (* Allocate receive buffer *)
-  let recv_buffer = String.create !len in
-  (* Do the scatter *)
-  scatter_string send_buffer recv_buffer root comm;
-  (* Unmarshal the result *)
-  let (v, _) = Marshal.from_string recv_buffer 0 in
-  v
+  if myself = root then begin
+    (* Check correct length for array *)
+    if Array.length data <> nprocs then invalid_arg "Mpi.scatter";
+    (* Marshal data to strings *)
+    let buffers =
+      Array.map (fun d -> Marshal.to_string d [Marshal.Closures]) data in
+    (* Determine lengths of strings *)
+    let lengths = Array.map String.length buffers in
+    (* Scatter those lengths *)
+    scatter_long lengths root comm;
+    (* Build single buffer with all data *)
+    let total_len = Array.fold_left (+) 0 lengths in
+    let send_buffer = String.create total_len in
+    let pos = ref 0 in
+    for i = 0 to nprocs - 1 do
+      String.blit buffers.(i) 0 send_buffer !pos lengths.(i);
+      pos := !pos + lengths.(i)
+    done;
+    (* Allocate receive buffer *)
+    let recv_buffer = String.create lengths.(myself) in
+    (* Do the scatter *)
+    scatter_string send_buffer lengths recv_buffer root comm;
+    (* Return value for root *)
+    data.(myself)
+  end else begin
+    (* Get our length *)
+    let len = scatter_long [||] root comm in
+    (* Allocate receive buffer *)
+    let recv_buffer = String.create len in
+    (* Do the scatter *)
+    scatter_string "" [||] recv_buffer root comm;
+    (* Return value received *)
+    Marshal.from_string recv_buffer 0
+  end
 
-external gather_string: string -> string -> int -> communicator -> unit
-	= "caml_mpi_gather"
+(* Gather *)
+
+external gather_string:
+  string -> string -> int array -> int -> communicator -> unit
+  = "caml_mpi_gather"
+
+external gather_long: int -> int array -> int -> communicator -> unit
+  = "caml_mpi_gather_long"
 
 let gather data root comm =
   let myself = comm_rank comm in
   let nprocs = comm_size comm in
-  let buff = Marshal.to_string data in
-  let red_res = allreduce_int [| String.length buff |] MPI_MAX comm in
-  let len = red_res.(0) in
-  let send_buffer = String.create len in
-  String.blit buff 0 send_buffer 0 (String.length buff);
+  let send_buffer = Marshal.to_string data [Marshal.Closures] in
   if myself = root then begin
-    let recv_buffer = String.create (len * nprocs) in
-    gather_string send_buffer recv_buffer root comm;
-    let (v0, _) = Marshal.from_string recv_buffer 0 in
-    let res = Array.create nprocs v0 in
+    (* Gather lengths for all data *)
+    let lengths = Array.make nprocs 0 in
+    gather_long (String.length send_buffer) lengths root comm;
+    (* Allocate receive buffer big enough to hold all data *)
+    let total_len = Array.fold_left (+) 0 lengths in
+    let recv_buffer = String.create total_len in
+    (* Gather the data *)
+    gather_string send_buffer recv_buffer lengths root comm;
+    (* Build array of results *)
+    let res0 = Marshal.from_string recv_buffer 0 in
+    let res = Array.make nprocs res0 in
+    let pos = ref 0 in
     for i = 1 to nprocs - 1 do
-      let (vi, _) = Marshal.from_string recv_buffer (i * len) in
-      res.(i) <- vi
+      pos := !pos + lengths.(i - 1);
+      res.(i) <- Marshal.from_string recv_buffer !pos
     done;
     res
   end else begin
-    gather_string send_buffer "" root comm;
+    (* Send our length *)
+    gather_long (String.length send_buffer) [||] root comm;
+    (* Send our data *)
+    gather_string send_buffer "" [||] root comm;
+    (* Return dummy results *)
     [||]
   end
 
-external allgather_string: string -> string -> communicator -> unit
-	= "caml_mpi_allgather"
+(* Gather to all *)
+
+external allgather_string:
+  string -> string -> int array -> communicator -> unit
+  = "caml_mpi_allgather"
+
+external allgather_long: int -> int array -> communicator -> unit
+  = "caml_mpi_allgather_long"
 
 let allgather data comm =
+  let myself = comm_rank comm in
   let nprocs = comm_size comm in
-  let buff = Marshal.to_string data in
-  let red_res = allreduce_int [| String.length buff |] MPI_MAX comm in
-  let len = red_res.(0) in
-  let send_buffer = String.create len in
-  String.blit buff 0 send_buffer 0 (String.length buff);
-  let recv_buffer = String.create (len * nprocs) in
-  allgather_string send_buffer recv_buffer comm;
-  let (v0, _) = Marshal.from_string recv_buffer 0 in
-  let res = Array.create nprocs v0 in
+  let send_buffer = Marshal.to_string data [Marshal.Closures] in
+  (* Gather lengths for all data *)
+  let lengths = Array.make nprocs 0 in
+  allgather_long (String.length send_buffer) lengths comm;
+  (* Allocate receive buffer big enough to hold all data *)
+  let total_len = Array.fold_left (+) 0 lengths in
+  let recv_buffer = String.create total_len in
+  (* Gather the data *)
+  allgather_string send_buffer recv_buffer lengths comm;
+  (* Build array of results *)
+  let res0 = Marshal.from_string recv_buffer 0 in
+  let res = Array.make nprocs res0 in
+  let pos = ref 0 in
   for i = 1 to nprocs - 1 do
-    let (vi, _) = Marshal.from_string recv_buffer (i * len) in
-    res.(i) <- vi
+    pos := !pos + lengths.(i - 1);
+    res.(i) <- Marshal.from_string recv_buffer !pos
   done;
   res
-
