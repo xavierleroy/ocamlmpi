@@ -69,34 +69,28 @@ external get_any_source : unit -> int = "caml_mpi_get_any_source"
 let any_tag = get_any_tag()
 let any_source = get_any_source()
 
-external send_string:
-    string -> int -> int -> communicator -> unit
+external send_basic:
+    'a -> Marshal.extern_flags list -> rank -> tag -> communicator -> unit
     = "caml_mpi_send"
 
 let send data dest tag comm =
-  let s = Marshal.to_string data [Marshal.Closures] in
-  send_string s dest tag comm
+  send_basic data [Marshal.Closures] dest tag comm
 
 external probe:
     int -> int -> communicator -> int * int * int
     = "caml_mpi_probe"
 
-external receive_string:
-    string -> int -> int -> communicator -> unit
+external receive_basic:
+    int -> rank -> tag -> communicator -> 'a
     = "caml_mpi_receive"
 
 let receive source tag comm =
   let (len, actual_source, actual_tag) = probe source tag comm in
-  let buffer = String.create len in
-  receive_string buffer source tag comm;
-  let v = Marshal.from_string buffer 0 in
-  v
+  receive_basic len source tag comm
 
 let receive_status source tag comm =
   let (len, actual_source, actual_tag) = probe source tag comm in
-  let buffer = String.create len in
-  receive_string buffer source tag comm;
-  let v = Marshal.from_string buffer 0 in
+  let v = receive_basic len source tag comm in
   (v, actual_source, actual_tag)
 
 let probe source tag comm =

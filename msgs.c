@@ -16,14 +16,28 @@
 #include <mpi.h>
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
+#include <caml/memory.h>
 #include "camlmpi.h"
+
+extern void output_value_to_malloc(value v, value flags,
+                                   /*out*/ char ** buf, /*out*/ long * len);
+extern value input_value_from_malloc(char * data, long ofs);
 
 /* Sending */
 
-value caml_mpi_send(value data, value dest, value tag, value comm)
+value caml_mpi_send(value data, value flags,
+                    value dest, value tag, value vcomm)
 {
-  MPI_Send(String_val(data), string_length(data), MPI_BYTE,
-           Int_val(dest), Int_val(tag), Comm_val(comm));
+  MPI_Comm comm = Comm_val(vcomm);
+  char * buffer;
+  long len;
+
+  Begin_root(vcomm)             /* prevent deallocation of communicator */
+    output_value_to_malloc(data, flags, &buffer, &len);
+    enter_blocking_section();
+    MPI_Send(buffer, len, MPI_BYTE, Int_val(dest), Int_val(tag), comm);
+    leave_blocking_section();
+  End_roots();
   return Val_unit;
 }
 
@@ -70,13 +84,23 @@ value caml_mpi_probe(value source, value tag, value comm)
 
 /* Receive */
 
-value caml_mpi_receive(value buffer, value source, value tag, value comm)
+value caml_mpi_receive(value vlen, value source, value tag, value vcomm)
 {
+  MPI_Comm comm = Comm_val(vcomm);
+  mlsize_t len = Long_val(vlen);
+  char * buffer;
   MPI_Status status;
+  value res;
 
-  MPI_Recv(String_val(buffer), string_length(buffer), MPI_BYTE,
-           Int_val(source), Int_val(tag), Comm_val(comm), &status);
-  return Val_unit;
+  Begin_root(vcomm)             /* prevent deallocation of communicator */
+    buffer = stat_alloc(len);
+    enter_blocking_section();
+    MPI_Recv(buffer, len, MPI_BYTE,
+             Int_val(source), Int_val(tag), comm, &status);
+    leave_blocking_section();
+    res = input_value_from_malloc(buffer, 0);
+  End_roots();
+  return res;
 }
 
 value caml_mpi_receive_int(value source, value tag, value comm)
