@@ -3,10 +3,12 @@ OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
 
 MPI=/usr/local/lib/mpich
+CAMLLIB=/usr/local/lib/ocaml
 
-CCFLAGS=-I$(MPI)/include -O -g
+CC=gcc
+CFLAGS=-I$(CAMLLIB) -I$(MPI)/include -O -g -Wall
 
-COBJS=mpistubs.o
+COBJS=init.o comm.o msgs.o collcomm.o
 OBJS=mpi.cmo
 
 
@@ -30,11 +32,12 @@ mpi.cmxa: $(OBJS:.cmo=.cmx)
 	$(OCAMLC) -c $<
 .ml.cmx:
 	$(OCAMLOPT) -c $<
-.c.o:
-	$(OCAMLC) -c -ccopt "$(CCFLAGS)" $<
 
+clean:
+	rm -f *.cm* *.o libmpi.a
 depend:
 	$(OCAMLDEP) *.ml > .depend
+	gcc -MM $(CFLAGS) *.c >> .depend
 
 include .depend
 

@@ -1,2 +1,6 @@
 mpi.cmo: mpi.cmi 
 mpi.cmx: mpi.cmi 
+comm.o: comm.c camlmpi.h
+groupcomm.o: groupcomm.c camlmpi.h
+init.o: init.c camlmpi.h
+msgs.o: msgs.c camlmpi.h
