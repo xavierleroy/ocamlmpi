@@ -1,6 +1,6 @@
 (***********************************************************************)
 (*                                                                     *)
-(*                           Objective Caml                            *)
+(*                         The Caml/MPI interface                      *)
 (*                                                                     *)
 (*            Xavier Leroy, projet Cristal, INRIA Rocquencourt         *)
 (*                                                                     *)
@@ -14,6 +14,8 @@
 (* Initialization *)
 
 exception Error of string
+
+let mpi_error s = raise(Error s)
 
 external init : string array -> unit = "caml_mpi_init"
 external finalize : unit -> unit = "caml_mpi_finalize"
@@ -35,22 +37,44 @@ let comm_world = get_comm_world()
 external comm_size : communicator -> int = "caml_mpi_comm_size"
 external comm_rank : communicator -> int = "caml_mpi_comm_rank"
 
+external comm_compare:
+    communicator -> communicator -> bool
+    = "caml_mpi_comm_compare"
+
+type color = int
+external comm_split:
+    communicator -> color -> int -> communicator
+    = "caml_mpi_comm_split"
+
+external get_undefined : unit -> int = "caml_mpi_get_undefined"
+
+let color_none = get_undefined()
+
 (* Point-to-point communication *)
 
 type tag = int
 
-external send_string: string -> int -> int -> communicator -> unit
-       = "caml_mpi_send"
+external get_any_tag : unit -> int = "caml_mpi_get_any_tag"
+external get_any_source : unit -> int = "caml_mpi_get_any_source"
+
+let any_tag = get_any_tag()
+let any_source = get_any_source()
+
+external send_string:
+    string -> int -> int -> communicator -> unit
+    = "caml_mpi_send"
 
 let send data dest tag comm =
   let s = Marshal.to_string data [Marshal.Closures] in
   send_string s dest tag comm
 
-external probe: int -> int -> communicator -> int * int * int
-	= "caml_mpi_probe"
+external probe:
+    int -> int -> communicator -> int * int * int
+    = "caml_mpi_probe"
 
-external receive_string: string -> int -> int -> communicator -> unit
-	= "caml_mpi_receive"
+external receive_string:
+    string -> int -> int -> communicator -> unit
+    = "caml_mpi_receive"
 
 let receive source tag comm =
   let (len, actual_source, actual_tag) = probe source tag comm in
@@ -63,14 +87,41 @@ let receive_status source tag comm =
   let (len, actual_source, actual_tag) = probe source tag comm in
   let buffer = String.create len in
   receive_string buffer source tag comm;
-  let (v, _) = Marshal.from_string buffer 0 in
+  let v = Marshal.from_string buffer 0 in
   (v, actual_source, actual_tag)
 
-external get_any_tag : unit -> int = "caml_mpi_get_any_tag"
-external get_any_source : unit -> int = "caml_mpi_get_any_source"
+let probe source tag comm =
+  let (len, actual_source, actual_tag) = probe source tag comm in
+  (actual_source, actual_tag)
 
-let any_tag = get_any_tag()
-let any_source = get_any_source()
+external send_int:
+    int -> rank -> tag -> communicator -> unit
+    = "caml_mpi_send_int"
+external receive_int:
+    rank -> tag -> communicator -> int
+    = "caml_mpi_receive_int"
+
+external send_float:
+    float -> rank -> tag -> communicator -> unit
+    = "caml_mpi_send_float"
+external receive_float:
+    rank -> tag -> communicator -> float
+    = "caml_mpi_receive_float"
+
+external send_int_array:
+    int array -> rank -> tag -> communicator -> unit
+    = "caml_mpi_send_intarray"
+external receive_int_array:
+    int array -> rank -> tag -> communicator -> unit
+    = "caml_mpi_receive_intarray"
+
+external send_float_array:
+    float array -> rank -> tag -> communicator -> unit
+    = "caml_mpi_send_float"
+external receive_float_array:
+    float array -> rank -> tag -> communicator -> unit
+    = "caml_mpi_receive_floatarray"
+
 
 (* Barrier *)
 
@@ -81,20 +132,15 @@ external barrier : communicator -> unit = "caml_mpi_barrier"
 external broadcast_string: string -> int -> communicator -> unit
 	 = "caml_mpi_broadcast"
 external broadcast_int: int -> int -> communicator -> int
-	 = "caml_mpi_broadcast_long"
+	 = "caml_mpi_broadcast_int"
 
-let broadcast data root comm =
+let broadcast v root comm =
   let myself = comm_rank comm in
   if myself = root then begin
-    match data with
-      None -> invalid_arg "Mpi.broadcast"
-    | Some v ->
-        (* Originating process marshals message, broadcast length, then
-           broadcast data *)
-        let data = Marshal.to_string v [Marshal.Closures] in
-        broadcast_int (String.length data) root comm;
-        broadcast_string data root comm;
-        v
+    let data = Marshal.to_string v [Marshal.Closures] in
+    broadcast_int (String.length data) root comm;
+    broadcast_string data root comm;
+    v
   end else begin
     (* Other processes receive length, allocate buffer, receive data,
        and unmarshal it. *)
@@ -104,28 +150,48 @@ let broadcast data root comm =
     Marshal.from_string data 0
   end
 
+let broadcast_opt data root comm =
+  match data with
+    Some d ->
+      broadcast d root comm
+  | None ->
+      if root = comm_rank comm
+      then mpi_error "Mpi.broadcast_opt: no data at root"
+      else broadcast (Obj.magic ()) root comm
+
+external broadcast_float:
+    float -> rank -> communicator -> float
+    = "caml_mpi_broadcast_float"
+external broadcast_int_array:
+    int array -> rank -> communicator -> unit
+    = "caml_mpi_broadcast_intarray"
+external broadcast_float_array:
+    float array -> rank -> communicator -> unit
+    = "caml_mpi_broadcast_floatarray"
+
 (* Scatter *)
 
 external scatter_string:
   string -> int array -> string -> int -> communicator -> unit
   = "caml_mpi_scatter"
 
-external scatter_long: int array -> int -> communicator -> int
-  = "caml_mpi_scatter_long"
+external scatter_int: int array -> int -> communicator -> int
+  = "caml_mpi_scatter_int"
 
 let scatter data root comm =
   let myself = comm_rank comm in
   let nprocs = comm_size comm in
   if myself = root then begin
     (* Check correct length for array *)
-    if Array.length data <> nprocs then invalid_arg "Mpi.scatter";
+    if Array.length data <> nprocs
+    then mpi_error "Mpi.scatter: wrong array size";
     (* Marshal data to strings *)
     let buffers =
       Array.map (fun d -> Marshal.to_string d [Marshal.Closures]) data in
     (* Determine lengths of strings *)
     let lengths = Array.map String.length buffers in
     (* Scatter those lengths *)
-    scatter_long lengths root comm;
+    scatter_int lengths root comm;
     (* Build single buffer with all data *)
     let total_len = Array.fold_left (+) 0 lengths in
     let send_buffer = String.create total_len in
@@ -142,7 +208,7 @@ let scatter data root comm =
     data.(myself)
   end else begin
     (* Get our length *)
-    let len = scatter_long [||] root comm in
+    let len = scatter_int [||] root comm in
     (* Allocate receive buffer *)
     let recv_buffer = String.create len in
     (* Do the scatter *)
@@ -151,14 +217,35 @@ let scatter data root comm =
     Marshal.from_string recv_buffer 0
   end
 
+external scatter_float:
+    float array -> rank -> communicator -> float
+    = "caml_mpi_scatter_float"
+external scatter_int_array:
+    int array -> int array -> rank -> communicator -> unit
+    = "caml_mpi_scatter_intarray"
+let scatter_int_array src dst rank comm =
+  if rank = comm_rank comm
+  && Array.length src <> Array.length dst * comm_size comm
+  then mpi_error "Mpi.scatter_int_array: array size mismatch"
+  else scatter_int_array src dst rank comm
+
+external scatter_float_array:
+    float array -> float array -> rank -> communicator -> unit
+    = "caml_mpi_scatter_floatarray"
+let scatter_float_array src dst rank comm =
+  if rank = comm_rank comm
+  && Array.length src <> Array.length dst * comm_size comm
+  then mpi_error "Mpi.scatter_float_array: array size mismatch"
+  else scatter_float_array src dst rank comm
+
 (* Gather *)
 
 external gather_string:
   string -> string -> int array -> int -> communicator -> unit
   = "caml_mpi_gather"
 
-external gather_long: int -> int array -> int -> communicator -> unit
-  = "caml_mpi_gather_long"
+external gather_int: int -> int array -> int -> communicator -> unit
+  = "caml_mpi_gather_int"
 
 let gather data root comm =
   let myself = comm_rank comm in
@@ -167,7 +254,7 @@ let gather data root comm =
   if myself = root then begin
     (* Gather lengths for all data *)
     let lengths = Array.make nprocs 0 in
-    gather_long (String.length send_buffer) lengths root comm;
+    gather_int (String.length send_buffer) lengths root comm;
     (* Allocate receive buffer big enough to hold all data *)
     let total_len = Array.fold_left (+) 0 lengths in
     let recv_buffer = String.create total_len in
@@ -184,12 +271,45 @@ let gather data root comm =
     res
   end else begin
     (* Send our length *)
-    gather_long (String.length send_buffer) [||] root comm;
+    gather_int (String.length send_buffer) [||] root comm;
     (* Send our data *)
     gather_string send_buffer "" [||] root comm;
     (* Return dummy results *)
     [||]
   end
+
+let gather_int src dst rank comm =
+  if rank = comm_rank comm
+  && Array.length dst <> comm_size comm
+  then mpi_error "Mpi.gather_int: array size mismatch"
+  else gather_int src dst rank comm
+
+external gather_float:
+    float -> float array -> rank -> communicator -> unit
+    = "caml_mpi_gather_float"
+let gather_float src dst rank comm =
+  if rank = comm_rank comm
+  && Array.length dst <> comm_size comm
+  then mpi_error "Mpi.gather_float: array size mismatch"
+  else gather_float src dst rank comm
+
+external gather_int_array:
+    int array -> int array -> rank -> communicator -> unit
+    = "caml_mpi_gather_intarray"
+let gather_int_array src dst rank comm =
+  if rank = comm_rank comm
+  && Array.length dst <> Array.length src * comm_size comm
+  then mpi_error "Mpi.gather_int_array: array size mismatch"
+  else gather_int_array src dst rank comm
+
+external gather_float_array:
+    float array -> float array -> rank -> communicator -> unit
+    = "caml_mpi_gather_float"
+let gather_float_array src dst rank comm =
+  if rank = comm_rank comm
+  && Array.length dst <> Array.length src * comm_size comm
+  then mpi_error "Mpi.gather_float_array: array size mismatch"
+  else gather_float_array src dst rank comm
 
 (* Gather to all *)
 
@@ -197,8 +317,8 @@ external allgather_string:
   string -> string -> int array -> communicator -> unit
   = "caml_mpi_allgather"
 
-external allgather_long: int -> int array -> communicator -> unit
-  = "caml_mpi_allgather_long"
+external allgather_int: int -> int array -> communicator -> unit
+  = "caml_mpi_allgather_int"
 
 let allgather data comm =
   let myself = comm_rank comm in
@@ -206,7 +326,7 @@ let allgather data comm =
   let send_buffer = Marshal.to_string data [Marshal.Closures] in
   (* Gather lengths for all data *)
   let lengths = Array.make nprocs 0 in
-  allgather_long (String.length send_buffer) lengths comm;
+  allgather_int (String.length send_buffer) lengths comm;
   (* Allocate receive buffer big enough to hold all data *)
   let total_len = Array.fold_left (+) 0 lengths in
   let recv_buffer = String.create total_len in
@@ -221,3 +341,123 @@ let allgather data comm =
     res.(i) <- Marshal.from_string recv_buffer !pos
   done;
   res
+
+let allgather_int src dst comm =
+  if Array.length dst <> comm_size comm
+  then mpi_error "MPI.allgather_int: array size mismatch"
+  else allgather_int src dst comm
+
+external allgather_float:
+    float -> float array -> communicator -> unit
+    = "caml_mpi_allgather_float"
+let allgather_float src dst comm =
+  if Array.length dst <> comm_size comm
+  then mpi_error "MPI.allgather_float: array size mismatch"
+  else allgather_float src dst comm
+
+external allgather_int_array:
+    int array -> int array -> communicator -> unit
+    = "caml_mpi_allgather_intarray"
+let allgather_int_array src dst comm =
+  if Array.length dst <> Array.length src * comm_size comm
+  then mpi_error "MPI.allgather_int_array: array size mismatch"
+  else allgather_int_array src dst comm
+
+external allgather_float_array:
+    float array -> float array -> communicator -> unit
+    = "caml_mpi_allgather_float"
+let allgather_float_array src dst comm =
+  if Array.length dst <> Array.length src * comm_size comm
+  then mpi_error "MPI.allgather_float_array: array size mismatch"
+  else allgather_float_array src dst comm
+
+(* Reduce *)
+
+type intop =
+  Int_max | Int_min | Int_sum | Int_prod | Int_land | Int_lor | Int_xor
+type floatop =
+  Float_max | Float_min | Float_sum | Float_prod
+
+external reduce_int:
+    int -> intop -> rank -> communicator -> int
+    = "caml_mpi_reduce_int"
+external reduce_float:
+    float -> floatop -> rank -> communicator -> float
+    = "caml_mpi_reduce_float"
+external reduce_intarray:
+    int array -> int array -> intop -> rank -> communicator -> unit
+    = "caml_mpi_reduce_intarray"
+let reduce_intarray src dst op rank comm =
+  if rank = comm_rank comm && Array.length src <> Array.length dst
+  then mpi_error "Mpi.reduce_intarray: array size mismatch"
+  else reduce_intarray src dst op rank comm
+
+external reduce_floatarray:
+    float array -> float array -> floatop -> rank -> communicator -> unit
+    = "caml_mpi_reduce_floatarray"
+let reduce_floatarray src dst op rank comm =
+  if rank = comm_rank comm && Array.length src <> Array.length dst
+  then mpi_error "Mpi.reduce_floatarray: array size mismatch"
+  else reduce_floatarray src dst op rank comm
+
+(* Reduce at all nodes *)
+
+external allreduce_int:
+    int -> intop -> communicator -> int
+    = "caml_mpi_allreduce_int"
+external allreduce_float:
+    float -> floatop -> communicator -> float
+    = "caml_mpi_allreduce_float"
+external allreduce_intarray:
+    int array -> int array -> intop -> communicator -> unit
+    = "caml_mpi_allreduce_intarray"
+let allreduce_intarray src dst op comm =
+  if Array.length src <> Array.length dst
+  then mpi_error "Mpi.allreduce_intarray: array size mismatch"
+  else allreduce_intarray src dst op comm
+
+external allreduce_floatarray:
+    float array -> float array -> floatop -> communicator -> unit
+    = "caml_mpi_allreduce_floatarray"
+let allreduce_floatarray src dst op comm =
+  if Array.length src <> Array.length dst
+  then mpi_error "Mpi.allreduce_floatarray: array size mismatch"
+  else allreduce_floatarray src dst op comm
+
+(* Scan *)
+
+external scan_int:
+    int -> int array -> intop -> communicator -> unit
+    = "caml_mpi_scan_int"
+let scan_int src dst op comm =
+  if Array.length dst <> comm_size comm
+  then mpi_error "Mpi.scan_int: array size mismatch"
+  else scan_int src dst op comm
+
+external scan_float:
+    float -> float array -> floatop -> communicator -> unit
+    = "caml_mpi_scan_float"
+let scan_float src dst op comm =
+  if Array.length dst <> comm_size comm
+  then mpi_error "Mpi.scan_float: array size mismatch"
+  else scan_float src dst op comm
+
+external scan_intarray:
+    int array -> int array -> intop -> communicator -> unit
+    = "caml_mpi_scan_intarray"
+let scan_intarray src dst op comm =
+  if Array.length dst <> Array.length src * comm_size comm
+  then mpi_error "Mpi.scan_intarray: array size mismatch"
+  else scan_intarray src dst op comm
+
+external scan_floatarray:
+    float array -> float array -> floatop -> communicator -> unit
+    = "caml_mpi_scan_float"
+let scan_floatarray src dst op comm =
+  if Array.length dst <> Array.length src * comm_size comm
+  then mpi_error "Mpi.scan_floatarray: array size mismatch"
+  else scan_floatarray src dst op comm
+
+(* Miscellaneous *)
+
+external wtime: unit -> float = "caml_mpi_wtime"

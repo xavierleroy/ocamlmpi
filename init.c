@@ -68,3 +68,7 @@ value caml_mpi_finalize(value unit)
   return Val_unit;
 }
 
+value caml_mpi_wtime(value unit)
+{
+  return copy_double(MPI_Wtime());
+}

@@ -136,13 +136,13 @@ value caml_mpi_scatter_intarray(value source, value dest,
   return Val_unit;
 }
 
-value caml_mpi_scatter_doublearray(value source, value dest,
-                                   value root, value comm)
+value caml_mpi_scatter_floatarray(value source, value dest,
+                                  value root, value comm)
 {
   int len = Wosize_val(dest) / Double_wosize;
   /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Scatter(&Double_val(source), len, MPI_LONG,
-              &Double_val(dest), len, MPI_LONG,
+  MPI_Scatter(&Double_val(source), len, MPI_DOUBLE,
+              &Double_val(dest), len, MPI_DOUBLE,
               Int_val(root), Comm_val(comm));
   return Val_unit;
 }
@@ -367,7 +367,8 @@ value caml_mpi_scan_intarray(value data, value result, value op, value comm)
   for (i = 0; i < len; i++) Field(data, i) = Val_long(Field(data, i));
   /* Encode result */
   MPI_Comm_rank(Comm_val(comm), &myrank);
-  for (i = 0; i < myrank; i++) Field(result, i) = Val_long(Field(result, i));
+  len = len * myrank;
+  for (i = 0; i < len; i++) Field(result, i) = Val_long(Field(result, i));
   return Val_unit;
 }
 
