@@ -244,3 +244,106 @@ let _ =
               output_float_array output_float_array
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
 
+(* Reduce *)
+
+let test_reduce reducefun reduceops printfun data =
+  printf "%d: my data is %a" myrank printfun data; print_newline();
+  List.iter
+    (fun op ->
+      let res = reducefun data op 0 comm_world in
+      if myrank = 0 then begin
+        printf "0: result of reduction is %a" printfun res; print_newline()
+      end)
+    reduceops;
+  barrier comm_world
+
+let _ =
+  test_reduce reduce_int
+              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
+              output_int
+              (myrank + 1);
+  test_reduce reduce_float
+              [Float_max; Float_min; Float_sum; Float_prod]
+              output_float
+              (float myrank +. 1.0);
+  let ia = Array.make 3 0 in
+  test_reduce (fun d op r c -> reduce_int_array d ia op r c; ia)
+              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
+              output_int_array
+              [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
+  let fa = Array.make 3 0.0 in
+  test_reduce (fun d op r c -> reduce_float_array d fa op r c; fa)
+              [Float_max; Float_min; Float_sum; Float_prod]
+              output_float_array
+              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
+
+(* Reduce all *)
+
+let test_reduceall reducefun reduceops printfun data =
+  printf "%d: my data is %a" myrank printfun data; print_newline();
+  List.iter
+    (fun op ->
+      let res = reducefun data op 0 comm_world in
+      printf "%d: result of reduction is %a" myrank printfun res;
+      print_newline();
+      barrier comm_world)
+    reduceops
+
+let _ =
+  test_reduceall reduce_int
+              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
+              output_int
+              (myrank + 1);
+  test_reduceall reduce_float
+              [Float_max; Float_min; Float_sum; Float_prod]
+              output_float
+              (float myrank +. 1.0);
+  let ia = Array.make 3 0 in
+  test_reduceall (fun d op r c -> reduce_int_array d ia op r c; ia)
+              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
+              output_int_array
+              [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
+  let fa = Array.make 3 0.0 in
+  test_reduceall (fun d op r c -> reduce_float_array d fa op r c; fa)
+              [Float_max; Float_min; Float_sum; Float_prod]
+              output_float_array
+              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
+
+
+(* Scan *)
+
+let test_scan scanfun reduceops printfun1 printfun2 data size_res init_res =
+  printf "%d: my data is %a" myrank printfun1 data; print_newline();
+  List.iter
+    (fun op ->
+      let res = Array.make size_res init_res in
+      scanfun data res op comm_world;
+      printf "%d: result of scanning is %a" myrank printfun2 res;
+      print_newline();
+      barrier comm_world)
+    reduceops
+
+let _ =
+  test_scan scan_int
+              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
+              output_int output_int_array
+              (myrank + 1) size 0;
+  test_scan scan_float
+              [Float_max; Float_min; Float_sum; Float_prod]
+              output_float output_float_array
+              (float myrank +. 1.0) size 0.0;
+  test_scan scan_int_array
+              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
+              output_int_array output_int_array
+              [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |]
+              (size * 3) 0;
+  test_scan scan_float_array
+              [Float_max; Float_min; Float_sum; Float_prod]
+              output_float_array output_float_array
+              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
+              (size * 3) 0.0
+
+(* Wtime *)
+
+let _ =
+  printf "%d: my wtime is %.3f" myrank (wtime()); print_newline()

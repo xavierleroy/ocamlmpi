@@ -384,21 +384,21 @@ external reduce_int:
 external reduce_float:
     float -> floatop -> rank -> communicator -> float
     = "caml_mpi_reduce_float"
-external reduce_intarray:
+external reduce_int_array:
     int array -> int array -> intop -> rank -> communicator -> unit
     = "caml_mpi_reduce_intarray"
-let reduce_intarray src dst op rank comm =
+let reduce_int_array src dst op rank comm =
   if rank = comm_rank comm && Array.length src <> Array.length dst
-  then mpi_error "Mpi.reduce_intarray: array size mismatch"
-  else reduce_intarray src dst op rank comm
+  then mpi_error "Mpi.reduce_int_array: array size mismatch"
+  else reduce_int_array src dst op rank comm
 
-external reduce_floatarray:
+external reduce_float_array:
     float array -> float array -> floatop -> rank -> communicator -> unit
     = "caml_mpi_reduce_floatarray"
-let reduce_floatarray src dst op rank comm =
+let reduce_float_array src dst op rank comm =
   if rank = comm_rank comm && Array.length src <> Array.length dst
-  then mpi_error "Mpi.reduce_floatarray: array size mismatch"
-  else reduce_floatarray src dst op rank comm
+  then mpi_error "Mpi.reduce_float_array: array size mismatch"
+  else reduce_float_array src dst op rank comm
 
 (* Reduce at all nodes *)
 
@@ -408,21 +408,21 @@ external allreduce_int:
 external allreduce_float:
     float -> floatop -> communicator -> float
     = "caml_mpi_allreduce_float"
-external allreduce_intarray:
+external allreduce_int_array:
     int array -> int array -> intop -> communicator -> unit
     = "caml_mpi_allreduce_intarray"
-let allreduce_intarray src dst op comm =
+let allreduce_int_array src dst op comm =
   if Array.length src <> Array.length dst
-  then mpi_error "Mpi.allreduce_intarray: array size mismatch"
-  else allreduce_intarray src dst op comm
+  then mpi_error "Mpi.allreduce_int_array: array size mismatch"
+  else allreduce_int_array src dst op comm
 
-external allreduce_floatarray:
+external allreduce_float_array:
     float array -> float array -> floatop -> communicator -> unit
     = "caml_mpi_allreduce_floatarray"
-let allreduce_floatarray src dst op comm =
+let allreduce_float_array src dst op comm =
   if Array.length src <> Array.length dst
-  then mpi_error "Mpi.allreduce_floatarray: array size mismatch"
-  else allreduce_floatarray src dst op comm
+  then mpi_error "Mpi.allreduce_float_array: array size mismatch"
+  else allreduce_float_array src dst op comm
 
 (* Scan *)
 
@@ -442,21 +442,21 @@ let scan_float src dst op comm =
   then mpi_error "Mpi.scan_float: array size mismatch"
   else scan_float src dst op comm
 
-external scan_intarray:
+external scan_int_array:
     int array -> int array -> intop -> communicator -> unit
     = "caml_mpi_scan_intarray"
-let scan_intarray src dst op comm =
+let scan_int_array src dst op comm =
   if Array.length dst <> Array.length src * comm_size comm
-  then mpi_error "Mpi.scan_intarray: array size mismatch"
-  else scan_intarray src dst op comm
+  then mpi_error "Mpi.scan_int_array: array size mismatch"
+  else scan_int_array src dst op comm
 
-external scan_floatarray:
+external scan_float_array:
     float array -> float array -> floatop -> communicator -> unit
     = "caml_mpi_scan_float"
-let scan_floatarray src dst op comm =
+let scan_float_array src dst op comm =
   if Array.length dst <> Array.length src * comm_size comm
-  then mpi_error "Mpi.scan_floatarray: array size mismatch"
-  else scan_floatarray src dst op comm
+  then mpi_error "Mpi.scan_float_array: array size mismatch"
+  else scan_float_array src dst op comm
 
 (* Miscellaneous *)
 

@@ -80,22 +80,22 @@ type floatop =
 
 val reduce_int: int -> intop -> rank -> communicator -> int
 val reduce_float: float -> floatop -> rank -> communicator -> float
-val reduce_intarray:
+val reduce_int_array:
   int array -> int array -> intop -> rank -> communicator -> unit
-val reduce_floatarray:
+val reduce_float_array:
   float array -> float array -> floatop -> rank -> communicator -> unit
 
 val allreduce_int: int -> intop -> communicator -> int
 val allreduce_float: float -> floatop -> communicator -> float
-val allreduce_intarray:
+val allreduce_int_array:
   int array -> int array -> intop -> communicator -> unit
-val allreduce_floatarray:
+val allreduce_float_array:
   float array -> float array -> floatop -> communicator -> unit
 
 val scan_int: int -> int array -> intop -> communicator -> unit
 val scan_float: float -> float array -> floatop -> communicator -> unit
-val scan_intarray: int array -> int array -> intop -> communicator -> unit
-val scan_floatarray:
+val scan_int_array: int array -> int array -> intop -> communicator -> unit
+val scan_float_array:
   float array -> float array -> floatop -> communicator -> unit
 
 val comm_compare: communicator -> communicator -> bool
