@@ -59,9 +59,10 @@ value caml_mpi_broadcast_intarray(value data, value root, value comm)
 
 value caml_mpi_broadcast_floatarray(value data, value root, value comm)
 {
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Bcast(&Double_val(data), Wosize_val(data) / Double_wosize, MPI_DOUBLE,
-            Int_val(root), Comm_val(comm));
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  double * d = caml_mpi_input_floatarray(data, len);
+  MPI_Bcast(d, len, MPI_DOUBLE, Int_val(root), Comm_val(comm));
+  caml_mpi_commit_floatarray(d, data, len);
   return Val_unit;
 }
 
@@ -117,19 +118,19 @@ value caml_mpi_scatter_int(value data, value root, value comm)
 
 value caml_mpi_scatter_float(value data, value root, value comm)
 {
-  double d;
-
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Scatter(&Double_val(data), 1, MPI_DOUBLE,
-              &d, 1, MPI_DOUBLE,
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  double * src = caml_mpi_input_floatarray(data, len);
+  double dst;
+  MPI_Scatter(src, 1, MPI_DOUBLE, &dst, 1, MPI_DOUBLE,
               Int_val(root), Comm_val(comm));
-  return copy_double(d);
+  caml_mpi_free_floatarray(src);
+  return copy_double(dst);
 }
 
 value caml_mpi_scatter_intarray(value source, value dest,
                                 value root, value comm)
 {
-  int len = Wosize_val(dest);
+  mlsize_t len = Wosize_val(dest);
   MPI_Scatter(&Field(source, 0), len, MPI_LONG,
               &Field(dest, 0), len, MPI_LONG,
               Int_val(root), Comm_val(comm));
@@ -139,11 +140,15 @@ value caml_mpi_scatter_intarray(value source, value dest,
 value caml_mpi_scatter_floatarray(value source, value dest,
                                   value root, value comm)
 {
-  int len = Wosize_val(dest) / Double_wosize;
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Scatter(&Double_val(source), len, MPI_DOUBLE,
-              &Double_val(dest), len, MPI_DOUBLE,
+  mlsize_t srclen = Wosize_val(source) / Double_wosize;
+  mlsize_t len = Wosize_val(dest) / Double_wosize;
+  double * src = caml_mpi_input_floatarray_at_node(source, srclen, root, comm);
+  double * dst = caml_mpi_output_floatarray(dest, len);
+
+  MPI_Scatter(src, len, MPI_DOUBLE, dst, len, MPI_DOUBLE,
               Int_val(root), Comm_val(comm));
+  caml_mpi_free_floatarray(src);
+  caml_mpi_commit_floatarray(dst, dest, len);
   return Val_unit;
 }
 
@@ -177,7 +182,7 @@ value caml_mpi_gather_int(value data, value result, value root, value comm)
 value caml_mpi_gather_intarray(value data, value result,
                                value root, value comm)
 {
-  int len = Wosize_val(data);
+  mlsize_t len = Wosize_val(data);
   MPI_Gather(&Field(data, 0), len, MPI_LONG,
              &Field(result, 0), len, MPI_LONG,
              Int_val(root), Comm_val(comm));
@@ -186,11 +191,15 @@ value caml_mpi_gather_intarray(value data, value result,
 
 value caml_mpi_gather_float(value data, value result, value root, value comm)
 {
-  int len = Wosize_val(data) / Double_wosize;
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Gather(&Double_val(data), len, MPI_DOUBLE,
-             &Double_val(result), len, MPI_DOUBLE,
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  mlsize_t reslen = Wosize_val(result) / Double_wosize;
+  double * d = caml_mpi_input_floatarray(data, len);
+  double * res =
+    caml_mpi_output_floatarray_at_node(result, reslen, root, comm);
+  MPI_Gather(d, len, MPI_DOUBLE, res, len, MPI_DOUBLE,
              Int_val(root), Comm_val(comm));
+  caml_mpi_free_floatarray(d);
+  caml_mpi_commit_floatarray(res, result, reslen);
   return Val_unit;
 }
 
@@ -221,7 +230,7 @@ value caml_mpi_allgather_int(value data, value result, value comm)
 
 value caml_mpi_allgather_intarray(value data, value result, value comm)
 {
-  int len = Wosize_val(data);
+  mlsize_t len = Wosize_val(data);
   MPI_Allgather(&Field(data, 0), len, MPI_LONG,
                 &Field(result, 0), len, MPI_LONG,
                 Comm_val(comm));
@@ -230,11 +239,15 @@ value caml_mpi_allgather_intarray(value data, value result, value comm)
 
 value caml_mpi_allgather_float(value data, value result, value comm)
 {
-  int len = Wosize_val(data) / Double_wosize;
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Allgather(&Double_val(data), len, MPI_DOUBLE,
-                &Double_val(result), len, MPI_DOUBLE,
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  mlsize_t reslen = Wosize_val(result) / Double_wosize;
+  double * d = caml_mpi_input_floatarray(data, len);
+  double * res = caml_mpi_output_floatarray(result, reslen);
+
+  MPI_Allgather(d, len, MPI_DOUBLE, res, len, MPI_DOUBLE,
                 Comm_val(comm));
+  caml_mpi_free_floatarray(d);
+  caml_mpi_commit_floatarray(res, result, reslen);
   return Val_unit;
 }
 
@@ -257,7 +270,7 @@ value caml_mpi_reduce_int(value data, value op, value root, value comm)
 value caml_mpi_reduce_intarray(value data, value result, value op,
                                value root, value comm)
 {
-  int len = Wosize_val(data);
+  mlsize_t len = Wosize_val(data);
   int i, myrank;
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
@@ -285,10 +298,14 @@ value caml_mpi_reduce_float(value data, value op, value root, value comm)
 value caml_mpi_reduce_floatarray(value data, value result, value op,
                             value root, value comm)
 {
-  int len = Wosize_val(data) / Double_wosize;
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Reduce(&Double_val(data), &Double_val(result), len, MPI_DOUBLE,
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  double * d = caml_mpi_input_floatarray(data, len);
+  double * res = caml_mpi_output_floatarray(result, len);
+
+  MPI_Reduce(d, res, len, MPI_DOUBLE,
              reduce_floatop[Int_val(op)], Int_val(root), Comm_val(comm));
+  caml_mpi_free_floatarray(d);
+  caml_mpi_commit_floatarray(res, result, len);
   return Val_unit;
 }
 
@@ -306,7 +323,7 @@ value caml_mpi_allreduce_int(value data, value op, value comm)
 value caml_mpi_allreduce_intarray(value data, value result, value op,
                                   value comm)
 {
-  int len = Wosize_val(data);
+  mlsize_t len = Wosize_val(data);
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
@@ -331,10 +348,14 @@ value caml_mpi_allreduce_float(value data, value op, value comm)
 value caml_mpi_allreduce_floatarray(value data, value result, value op,
                                     value comm)
 {
-  int len = Wosize_val(data) / Double_wosize;
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Allreduce(&Double_val(data), &Double_val(result), len, MPI_DOUBLE,
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  double * d = caml_mpi_input_floatarray(data, len);
+  double * res = caml_mpi_output_floatarray(result, len);
+
+  MPI_Allreduce(d, res, len, MPI_DOUBLE,
                 reduce_floatop[Int_val(op)], Comm_val(comm));
+  caml_mpi_free_floatarray(d);
+  caml_mpi_commit_floatarray(res, result, len);
   return Val_unit;
 }
 
@@ -351,7 +372,7 @@ value caml_mpi_scan_int(value data, value op, value comm)
 
 value caml_mpi_scan_intarray(value data, value result, value op, value comm)
 {
-  int len = Wosize_val(data);
+  mlsize_t len = Wosize_val(data);
 
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
@@ -376,11 +397,14 @@ value caml_mpi_scan_float(value data, value op, value comm)
 
 value caml_mpi_scan_floatarray(value data, value result, value op, value comm)
 {
-  int len = Wosize_val(data) / Double_wosize;
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  double * d = caml_mpi_input_floatarray(data, len);
+  double * res = caml_mpi_output_floatarray(result, len);
 
-  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
-  MPI_Scan(&Double_val(data), &Double_val(result), len, MPI_DOUBLE,
+  MPI_Scan(d, res, len, MPI_DOUBLE,
            reduce_floatop[Int_val(op)], Comm_val(comm));
+  caml_mpi_free_floatarray(d);
+  caml_mpi_commit_floatarray(res, result, len);
   return Val_unit;
 }
 

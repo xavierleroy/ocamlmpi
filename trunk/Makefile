@@ -9,7 +9,7 @@ CAMLLIB=/usr/local/lib/ocaml
 CC=gcc
 CFLAGS=-I$(CAMLLIB) -I$(MPIINCDIR) -O -g -Wall
 
-COBJS=init.o comm.o msgs.o collcomm.o
+COBJS=init.o comm.o msgs.o collcomm.o utils.o
 OBJS=mpi.cmo
 
 all: libcamlmpi.a mpi.cma mpi.cmxa

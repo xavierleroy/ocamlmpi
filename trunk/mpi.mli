@@ -212,8 +212,8 @@ type intop =
   Int_max | Int_min | Int_sum | Int_prod | Int_land | Int_lor | Int_xor
 type floatop =
   Float_max | Float_min | Float_sum | Float_prod
-        (* The operations that can be performed by a reduce, allreduce
-           or scan, on integers and floats respectively. [max] and [min]
+        (* The operations that can be performed by a reduce or scan,
+           on integers and floats respectively. [max] and [min]
            are maximum and minimum; [sum] and [prod]
            are summation ([+]) and product ([*]).
            [land]. [lor] and [lxor] are logical (bit-per-bit) and,
