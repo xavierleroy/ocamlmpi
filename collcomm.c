@@ -1,0 +1,382 @@
+/***********************************************************************/
+/*                                                                     */
+/*                         The Caml/MPI interface                      */
+/*                                                                     */
+/*            Xavier Leroy, projet Cristal, INRIA Rocquencourt         */
+/*                                                                     */
+/*  Copyright 1998 Institut National de Recherche en Informatique et   */
+/*  Automatique.  Distributed only by permission.                      */
+/*                                                                     */
+/***********************************************************************/
+
+/* $Id$ */
+
+/* Group communication */
+
+#include <mpi.h>
+#include <caml/mlvalues.h>
+#include <caml/memory.h>
+#include <caml/alloc.h>
+#include "camlmpi.h"
+
+/* Barrier synchronization */
+
+value caml_mpi_barrier(value comm)
+{
+  MPI_Barrier(Comm_val(comm));
+  return Val_unit;
+}
+
+/* Broadcast */
+
+value caml_mpi_broadcast(value buffer, value root, value comm)
+{
+  MPI_Bcast(String_val(buffer), string_length(buffer), MPI_BYTE,
+            Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
+value caml_mpi_broadcast_int(value data, value root, value comm)
+{
+  long n = Long_val(data);
+  MPI_Bcast(&n, 1, MPI_LONG, Int_val(root), Comm_val(comm));
+  return Val_long(n);
+}
+
+value caml_mpi_broadcast_float(value data, value root, value comm)
+{
+  double d = Double_val(data);
+  MPI_Bcast(&d, 1, MPI_DOUBLE, Int_val(root), Comm_val(comm));
+  return copy_double(d);
+}
+
+value caml_mpi_broadcast_intarray(value data, value root, value comm)
+{
+  MPI_Bcast(&Field(data, 0), Wosize_val(data), MPI_LONG,
+            Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
+value caml_mpi_broadcast_floatarray(value data, value root, value comm)
+{
+  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
+  MPI_Bcast(&Double_val(data), Wosize_val(data) / Double_wosize, MPI_DOUBLE,
+            Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
+/* Scatter */
+
+static void caml_mpi_counts_displs(value lengths,
+                                   /* out */ int ** counts,
+                                   /* out */ int ** displs)
+{
+  int size, disp, i;
+
+  size = Wosize_val(lengths);
+  if (size > 0) {
+    *counts = stat_alloc(size * sizeof(int));
+    *displs = stat_alloc(size * sizeof(int));
+    for (i = 0, disp = 0; i < size; i++) {
+      (*counts)[i] = Int_val(Field(lengths, i));
+      (*displs)[i] = disp;
+      disp += (*counts)[i];
+    }
+  } else {
+    *counts = NULL;
+    *displs = NULL;
+  }
+}
+
+value caml_mpi_scatter(value sendbuf, value sendlengths, 
+                       value recvbuf,
+                       value root, value comm)
+{
+  int * sendcounts, * displs;
+
+  caml_mpi_counts_displs(sendlengths, &sendcounts, &displs);
+  MPI_Scatterv(String_val(sendbuf), sendcounts, displs, MPI_BYTE,
+               String_val(recvbuf), string_length(recvbuf), MPI_BYTE,
+               Int_val(root), Comm_val(comm));
+  if (sendcounts != NULL) {
+    stat_free(sendcounts);
+    stat_free(displs);
+  }
+  return Val_unit;
+}
+
+value caml_mpi_scatter_int(value data, value root, value comm)
+{
+  value n;
+
+  MPI_Scatter(&Field(data, 0), 1, MPI_LONG,
+              &n, 1, MPI_LONG,
+              Int_val(root), Comm_val(comm));
+  return n;
+}
+
+value caml_mpi_scatter_float(value data, value root, value comm)
+{
+  double d;
+
+  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
+  MPI_Scatter(&Double_val(data), 1, MPI_DOUBLE,
+              &d, 1, MPI_DOUBLE,
+              Int_val(root), Comm_val(comm));
+  return copy_double(d);
+}
+
+value caml_mpi_scatter_intarray(value source, value dest,
+                                value root, value comm)
+{
+  int len = Wosize_val(dest);
+  MPI_Scatter(&Field(source, 0), len, MPI_LONG,
+              &Field(dest, 0), len, MPI_LONG,
+              Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
+value caml_mpi_scatter_doublearray(value source, value dest,
+                                   value root, value comm)
+{
+  int len = Wosize_val(dest) / Double_wosize;
+  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
+  MPI_Scatter(&Double_val(source), len, MPI_LONG,
+              &Double_val(dest), len, MPI_LONG,
+              Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
+/* Gather */
+
+value caml_mpi_gather(value sendbuf,
+                      value recvbuf, value recvlengths,
+                      value root, value comm)
+{
+  int * recvcounts, * displs;
+
+  caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
+  MPI_Gatherv(String_val(sendbuf), string_length(sendbuf), MPI_BYTE,
+              String_val(recvbuf), recvcounts, displs, MPI_BYTE,
+              Int_val(root), Comm_val(comm));
+  if (recvcounts != NULL) {
+    stat_free(recvcounts);
+    stat_free(displs);
+  }
+  return Val_unit;
+}
+
+value caml_mpi_gather_int(value data, value result, value root, value comm)
+{
+  MPI_Gather(&data, 1, MPI_LONG,
+             &Field(result, 0), 1, MPI_LONG,
+             Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
+value caml_mpi_gather_intarray(value data, value result,
+                               value root, value comm)
+{
+  int len = Wosize_val(data);
+  MPI_Gather(&Field(data, 0), len, MPI_LONG,
+             &Field(result, 0), len, MPI_LONG,
+             Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
+value caml_mpi_gather_float(value data, value result, value root, value comm)
+{
+  int len = Wosize_val(data) / Double_wosize;
+  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
+  MPI_Gather(&Double_val(data), len, MPI_DOUBLE,
+             &Double_val(result), len, MPI_DOUBLE,
+             Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
+/* Gather to all */
+
+value caml_mpi_allgather(value sendbuf,
+                         value recvbuf, value recvlengths,
+                         value comm)
+{
+  int * recvcounts, * displs;
+
+  caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
+  MPI_Allgatherv(String_val(sendbuf), string_length(sendbuf), MPI_BYTE,
+                 String_val(recvbuf), recvcounts, displs, MPI_BYTE,
+                 Comm_val(comm));
+  stat_free(recvcounts);
+  stat_free(displs);
+  return Val_unit;
+}
+
+value caml_mpi_allgather_int(value data, value result, value comm)
+{
+  MPI_Allgather(&data, 1, MPI_LONG,
+                &Field(result, 0), 1, MPI_LONG,
+                Comm_val(comm));
+  return Val_unit;
+}
+
+value caml_mpi_allgather_intarray(value data, value result, value comm)
+{
+  int len = Wosize_val(data);
+  MPI_Allgather(&Field(data, 0), len, MPI_LONG,
+                &Field(result, 0), len, MPI_LONG,
+                Comm_val(comm));
+  return Val_unit;
+}
+
+value caml_mpi_allgather_float(value data, value result, value comm)
+{
+  int len = Wosize_val(data) / Double_wosize;
+  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
+  MPI_Allgather(&Double_val(data), len, MPI_DOUBLE,
+                &Double_val(result), len, MPI_DOUBLE,
+                Comm_val(comm));
+  return Val_unit;
+}
+
+/* Reduce */
+
+static MPI_Op reduce_intop[] =
+  { MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD, MPI_BAND, MPI_BOR, MPI_BXOR };
+static MPI_Op reduce_floatop[] =
+  { MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD };
+
+value caml_mpi_reduce_int(value data, value op, value root, value comm)
+{
+  long d = Long_val(data);
+  long r = 0;
+  MPI_Reduce(&d, &r, 1, MPI_LONG,
+             reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
+  return Val_long(r);
+}
+
+value caml_mpi_reduce_intarray(value data, value result, value op,
+                               value root, value comm)
+{
+  int len = Wosize_val(data);
+  int i, myrank;
+  /* Decode data at all nodes in place */
+  for (i = 0; i < len; i++) Field(data, i) = Long_val(Field(data, i));
+  /* Do the reduce */
+  MPI_Reduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
+             reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
+  /* Re-encode data at all nodes in place */
+  for (i = 0; i < len; i++) Field(data, i) = Val_long(Field(data, i));
+  /* At root node, also encode result */
+  MPI_Comm_rank(Comm_val(comm), &myrank);
+  if (myrank == Int_val(root))
+    for (i = 0; i < len; i++) Field(result, i) = Val_long(Field(result, i));
+  return Val_unit;
+}
+
+value caml_mpi_reduce_float(value data, value op, value root, value comm)
+{
+  double d = Double_val(data);
+  double r = 0.0;
+  MPI_Reduce(&d, &r, 1, MPI_DOUBLE,
+             reduce_floatop[Int_val(op)], Int_val(root), Comm_val(comm));
+  return copy_double(r);
+}
+
+value caml_mpi_reduce_floatarray(value data, value result, value op,
+                            value root, value comm)
+{
+  int len = Wosize_val(data) / Double_wosize;
+  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
+  MPI_Reduce(&Double_val(data), &Double_val(result), len, MPI_DOUBLE,
+             reduce_floatop[Int_val(op)], Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
+/* Allreduce */
+
+value caml_mpi_allreduce_int(value data, value op, value comm)
+{
+  long d = Long_val(data);
+  long r;
+  MPI_Allreduce(&d, &r, 1, MPI_LONG,
+                reduce_intop[Int_val(op)], Comm_val(comm));
+  return Val_long(r);
+}
+
+value caml_mpi_allreduce_intarray(value data, value result, value op,
+                                  value comm)
+{
+  int len = Wosize_val(data);
+  int i;
+  /* Decode data at all nodes in place */
+  for (i = 0; i < len; i++) Field(data, i) = Long_val(Field(data, i));
+  /* Do the reduce */
+  MPI_Allreduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
+                reduce_intop[Int_val(op)], Comm_val(comm));
+  /* Re-encode data at all nodes in place */
+  for (i = 0; i < len; i++) Field(data, i) = Val_long(Field(data, i));
+  /* Re-encode result at all nodes in place */
+  for (i = 0; i < len; i++) Field(result, i) = Val_long(Field(result, i));
+  return Val_unit;
+}
+
+value caml_mpi_allreduce_float(value data, value op, value comm)
+{
+  double d = Double_val(data);
+  double r;
+  MPI_Allreduce(&d, &r, 1, MPI_DOUBLE,
+                reduce_floatop[Int_val(op)], Comm_val(comm));
+  return copy_double(r);
+}
+
+value caml_mpi_allreduce_floatarray(value data, value result, value op,
+                                    value comm)
+{
+  int len = Wosize_val(data) / Double_wosize;
+  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
+  MPI_Allreduce(&Double_val(data), &Double_val(result), len, MPI_DOUBLE,
+                reduce_floatop[Int_val(op)], Comm_val(comm));
+  return Val_unit;
+}
+
+/* Scan */
+
+value caml_mpi_scan_int(value data, value result, value op, value comm)
+{
+  long d = Long_val(data);
+  int i, myrank;
+
+  MPI_Scan(&d, &Field(result, 0), 1, MPI_LONG,
+           reduce_intop[Int_val(op)], Comm_val(comm));
+  /* Encode result */
+  MPI_Comm_rank(Comm_val(comm), &myrank);
+  for (i = 0; i <= myrank; i++) Field(result, i) = Val_long(Field(result, i));
+  return Val_unit;
+}
+
+value caml_mpi_scan_intarray(value data, value result, value op, value comm)
+{
+  int len = Wosize_val(data);
+  int i, myrank;
+  /* Decode data at all nodes in place */
+  for (i = 0; i < len; i++) Field(data, i) = Long_val(Field(data, i));
+  /* Do the scan */
+  MPI_Scan(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
+           reduce_intop[Int_val(op)], Comm_val(comm));
+  /* Re-encode data at all nodes in place */
+  for (i = 0; i < len; i++) Field(data, i) = Val_long(Field(data, i));
+  /* Encode result */
+  MPI_Comm_rank(Comm_val(comm), &myrank);
+  for (i = 0; i < myrank; i++) Field(result, i) = Val_long(Field(result, i));
+  return Val_unit;
+}
+
+value caml_mpi_scan_float(value data, value result, value op, value comm)
+{
+  int len = Wosize_val(data) / Double_wosize;
+
+  /* FIXME: potential alignment problem if ARCH_ALIGN_DOUBLE */
+  MPI_Scan(&Double_val(data), &Double_val(result), len, MPI_DOUBLE,
+           reduce_floatop[Int_val(op)], Comm_val(comm));
+  return Val_unit;
+}
