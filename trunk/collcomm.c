@@ -260,16 +260,16 @@ value caml_mpi_reduce_intarray(value data, value result, value op,
   int len = Wosize_val(data);
   int i, myrank;
   /* Decode data at all nodes in place */
+  caml_mpi_decode_intarray(data, len);
   for (i = 0; i < len; i++) Field(data, i) = Long_val(Field(data, i));
   /* Do the reduce */
   MPI_Reduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
              reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
   /* Re-encode data at all nodes in place */
-  for (i = 0; i < len; i++) Field(data, i) = Val_long(Field(data, i));
+  caml_mpi_encode_intarray(data, len);
   /* At root node, also encode result */
   MPI_Comm_rank(Comm_val(comm), &myrank);
-  if (myrank == Int_val(root))
-    for (i = 0; i < len; i++) Field(result, i) = Val_long(Field(result, i));
+  if (myrank == Int_val(root)) caml_mpi_encode_intarray(result, len);
   return Val_unit;
 }
 
@@ -307,16 +307,15 @@ value caml_mpi_allreduce_intarray(value data, value result, value op,
                                   value comm)
 {
   int len = Wosize_val(data);
-  int i;
   /* Decode data at all nodes in place */
-  for (i = 0; i < len; i++) Field(data, i) = Long_val(Field(data, i));
+  caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
   MPI_Allreduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
                 reduce_intop[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
-  for (i = 0; i < len; i++) Field(data, i) = Val_long(Field(data, i));
+  caml_mpi_encode_intarray(data, len);
   /* Re-encode result at all nodes in place */
-  for (i = 0; i < len; i++) Field(result, i) = Val_long(Field(result, i));
+  caml_mpi_encode_intarray(result, len);
   return Val_unit;
 }
 
@@ -341,38 +340,41 @@ value caml_mpi_allreduce_floatarray(value data, value result, value op,
 
 /* Scan */
 
-value caml_mpi_scan_int(value data, value result, value op, value comm)
+value caml_mpi_scan_int(value data, value op, value comm)
 {
   long d = Long_val(data);
-  int i, myrank;
+  long r;
 
-  MPI_Scan(&d, &Field(result, 0), 1, MPI_LONG,
-           reduce_intop[Int_val(op)], Comm_val(comm));
-  /* Encode result */
-  MPI_Comm_rank(Comm_val(comm), &myrank);
-  for (i = 0; i <= myrank; i++) Field(result, i) = Val_long(Field(result, i));
-  return Val_unit;
+  MPI_Scan(&d, &r, 1, MPI_LONG, reduce_intop[Int_val(op)], Comm_val(comm));
+  return Val_long(r);
 }
 
 value caml_mpi_scan_intarray(value data, value result, value op, value comm)
 {
   int len = Wosize_val(data);
-  int i, myrank;
+
   /* Decode data at all nodes in place */
-  for (i = 0; i < len; i++) Field(data, i) = Long_val(Field(data, i));
+  caml_mpi_decode_intarray(data, len);
   /* Do the scan */
   MPI_Scan(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
            reduce_intop[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
-  for (i = 0; i < len; i++) Field(data, i) = Val_long(Field(data, i));
+  caml_mpi_encode_intarray(data, len);
   /* Encode result */
-  MPI_Comm_rank(Comm_val(comm), &myrank);
-  len = len * myrank;
-  for (i = 0; i < len; i++) Field(result, i) = Val_long(Field(result, i));
+  caml_mpi_encode_intarray(result, len);
   return Val_unit;
 }
 
-value caml_mpi_scan_float(value data, value result, value op, value comm)
+value caml_mpi_scan_float(value data, value op, value comm)
+{
+  double d = Double_val(data), r;
+
+  MPI_Scan(&d, &r, 1, MPI_DOUBLE,
+           reduce_floatop[Int_val(op)], Comm_val(comm));
+  return copy_double(r);
+}
+
+value caml_mpi_scan_floatarray(value data, value result, value op, value comm)
 {
   int len = Wosize_val(data) / Double_wosize;
 
@@ -381,3 +383,4 @@ value caml_mpi_scan_float(value data, value result, value op, value comm)
            reduce_floatop[Int_val(op)], Comm_val(comm));
   return Val_unit;
 }
+

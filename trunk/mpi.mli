@@ -13,6 +13,12 @@
 
 (* Caml bindings for the Message Passing Interface (MPI) library *)
 
+(*** Error reporting *)
+
+exception Error of string
+        (* Raised when an operation of the [Mpi] module encounters an error.
+           The string argument describes the error. *)
+
 (*** Basic operations on communicators *)
 
 type communicator
@@ -287,6 +293,46 @@ val color_none: color
            of any of the new communicators.  [Mpi.comm_split] then
            returns a null communicator (allowing no communications) in
            that node. *)
+
+(** Cartesian topologies *)
+val cart_create:
+    communicator -> int array -> bool array -> bool -> communicator
+        (* [Mpi.cart_create comm dims periodic reorder] embeds a cartesian
+           topology (multi-dimensional grid) on the nodes of
+           communicator [comm], and return a
+           new communicator with that information attached.
+           The length of [dims] determines the number of dimensions of
+           the topology.  For each dimension [d], [dims.(d)] specifies
+           the number of nodes in that dimension, and [periodic.(d)]
+           says whether that dimension is periodic (wraps around) or not.
+           [reorder] determines whether the ranks of nodes in the new
+           communicator can be reordered for better efficiency ([true])
+           or must remain the same as in [comm] ([false]).
+           The initial communicator [comm] must contain at least as many
+           nodes as specified by [dims]. *)
+val dims_create: int -> int array -> int array
+        (* [Mpi.dims_create numnodes hints] helps determining a
+           suitable [dims] argument to [Mpi.cart_create]
+           given a number of nodes [numnodes], the number of
+           dimensions required, and optional constraints.
+           The length of the [hints] array determines the number of
+           dimensions.  For each dimension [d], [hints.(d)], if not null,
+           is the number of nodes required along this dimension.  If null,
+           [Mpi.dims_create] figures out a suitable number.
+
+           For instance, [Mpi.dims_create 24 [|0;0|]] returns reasonable
+           dimensions for a two-dimensional grid containing 24 nodes. *)
+
+val cart_rank: communicator -> int array -> rank
+        (* [Mpi.cart_rank comm coords] return the rank of the node in
+           the cartesian topology [comm] that is at coordinates [coords].
+           The [coords] array must have one element per dimension of the
+           cartesian topology.  Individual coordinates range between [0]
+           (inclusive) and the corresponding dimension (exclusive). *)
+val cart_coords: communicator -> rank -> int array
+        (* The inverse operation of [Mpi.cart_rank].
+           [Mpi.cart_coords comm r] returns the cartesian coordinates
+           of the node having rank [r] in [comm]. *)
 
 (*** Miscellaneous *)
 

@@ -298,6 +298,7 @@ let _ =
 let test_reduceall reducefun reduceop printfun data =
   printf "%d: my data is %a" myrank printfun data; print_newline();
   let res = reducefun data reduceop 0 comm_world in
+  barrier comm_world;
   printf "%d: result of reduction is %a" myrank printfun res;
   print_newline();
   barrier comm_world
@@ -326,6 +327,7 @@ let _ =
 let test_scan scanfun reduceop printfun data =
   printf "%d: my data is %a" myrank printfun data; print_newline();
   let res = scanfun data reduceop comm_world in
+  barrier comm_world;
   printf "%d: result of scanning is %a" myrank printfun res;
   print_newline();
   barrier comm_world
@@ -373,6 +375,33 @@ let _ =
   if myrank mod 2 = 0
   then send_in_comm c "aa" "a"
   else send_in_comm c "bb" "b";
+  barrier comm_world
+
+(* Cartesian topology *)
+
+let cart = cart_create comm_world [|2;2|] [|false;false|] true
+
+let test_dims_create n hints =
+  printf "dims_create %d %a = %a" n output_int_array hints
+                                    output_int_array (dims_create n hints);
+  print_newline()
+
+let _ =
+  if myrank = 0 then begin
+    for x = 0 to 1 do for y = 0 to 1 do
+      printf "(%d, %d) -> rank %d" x y (cart_rank cart [|x;y|]);
+      print_newline()
+    done done;
+    for r = 0 to comm_size cart - 1 do
+      let c = cart_coords cart r in
+      printf "rank %d -> (%d, %d)" r c.(0) c.(1);
+      print_newline()
+    done;
+    test_dims_create 60 [|0;0;0|];
+    test_dims_create 60 [|3;0;0|];
+    test_dims_create 60 [|0;4;0|];
+    test_dims_create 60 [|3;0;5|]
+  end;
   barrier comm_world
 
 (* Wtime *)
