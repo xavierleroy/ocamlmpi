@@ -1,3 +1,18 @@
+(***********************************************************************)
+(*                                                                     *)
+(*                         The Caml/MPI interface                      *)
+(*                                                                     *)
+(*            Xavier Leroy, projet Cristal, INRIA Rocquencourt         *)
+(*                                                                     *)
+(*  Copyright 1998 Institut National de Recherche en Informatique et   *)
+(*  en Automatique.  All rights reserved.  This file is distributed    *)
+(*  under the terms of the GNU Library General Public License, with    *)
+(*  the special exception on linking described in file LICENSE.        *)
+(*                                                                     *)
+(***********************************************************************)
+
+(* $Id$ *)
+
 open Graphics
 
 (* compute the color of a pixel *)
