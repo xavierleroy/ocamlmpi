@@ -427,26 +427,18 @@ let allreduce_float_array src dst op comm =
 (* Scan *)
 
 external scan_int:
-    int -> int array -> intop -> communicator -> unit
+    int -> intop -> communicator -> int
     = "caml_mpi_scan_int"
-let scan_int src dst op comm =
-  if Array.length dst <> comm_size comm
-  then mpi_error "Mpi.scan_int: array size mismatch"
-  else scan_int src dst op comm
 
 external scan_float:
-    float -> float array -> floatop -> communicator -> unit
+    float -> floatop -> communicator -> float
     = "caml_mpi_scan_float"
-let scan_float src dst op comm =
-  if Array.length dst <> comm_size comm
-  then mpi_error "Mpi.scan_float: array size mismatch"
-  else scan_float src dst op comm
 
 external scan_int_array:
     int array -> int array -> intop -> communicator -> unit
     = "caml_mpi_scan_intarray"
 let scan_int_array src dst op comm =
-  if Array.length dst <> Array.length src * comm_size comm
+  if Array.length dst <> Array.length src
   then mpi_error "Mpi.scan_int_array: array size mismatch"
   else scan_int_array src dst op comm
 
@@ -454,7 +446,7 @@ external scan_float_array:
     float array -> float array -> floatop -> communicator -> unit
     = "caml_mpi_scan_float"
 let scan_float_array src dst op comm =
-  if Array.length dst <> Array.length src * comm_size comm
+  if Array.length dst <> Array.length src
   then mpi_error "Mpi.scan_float_array: array size mismatch"
   else scan_float_array src dst op comm
 

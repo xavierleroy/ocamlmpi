@@ -2,11 +2,12 @@ OCAMLC=ocamlc
 OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
 
+MPIINCDIR=/usr/local/lib/mpich/include
 MPILIBDIR=/usr/local/lib/mpich/lib/LINUX/ch_p4
 CAMLLIB=/usr/local/lib/ocaml
 
 CC=gcc
-CFLAGS=-I$(CAMLLIB) -I$(MPI)/include -O -g -Wall
+CFLAGS=-I$(CAMLLIB) -I$(MPIINCDIR) -O -g -Wall
 
 COBJS=init.o comm.o msgs.o collcomm.o
 OBJS=mpi.cmo
