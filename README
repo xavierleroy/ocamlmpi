@@ -1,4 +1,4 @@
-This is OcamlMPI version 1.00, a Caml binding to the Message Passing
+This is OcamlMPI version 1.01, a Caml binding to the Message Passing
 Interface (MPI).
 
 
@@ -54,19 +54,16 @@ That is:
 
 BUILDING OCAMLMPI:
 
-Edit the Makefile and set the MPIINCDIR, MPILIBDIR and CAMLLIB
+Edit the Makefile and set the MPIINCDIR, MPILIBDIR and DESTDIR
 variables to the right directories:
 
 MPIINCDIR    directory containing the MPI include file <mpi.h>
 MPILIBDIR    directory containing the MPI library -lmpi
-CAMLLIB      directory containing the OCaml standard library
+DESTDIR      where to install the OcamlMPI library
 
 Also adjust CC and CFLAGS if necessary.  Then do "make all".
 
-For final installation: move by hand the following files to the
-directory where OCamlMPI should be installed:
-
-          mpi.mli mpi.cmi mpi.cma mpi.cmxa mpi.a libcamlmpi.a
+For final installation: become super-user and do "make install".
 
 
 TESTING OCAMLMPI:
@@ -79,18 +76,17 @@ There are two test programs included:
 USING OCAMLMPI:
 
 Bytecode:
-        ocamlc -custom -I <the OCAMLMPI dir> mpi.cma <your files> \
-               -cclib -lcamlmpi -ccopt -L<where libmpi.a resides> -cclib -lmpi
+        ocamlc -I +ocamlmpi mpi.cma <your files>
 
 Native-code:
-        ocamlopt -custom -I <the OCAMLMPI dir> mpi.cmxa <your files> \
-               -cclib -lcamlmpi -ccopt -L<where libmpi.a resides> -cclib -lmpi
+        ocamlopt -I +ocamlmpi mpi.cmxa <your files>
 
 
 LICENSING:
 
-The OCamlMPI library is copyright 1998 INRIA.  See the file LICENSE
-for licensing information.
+The OCamlMPI library is copyright 1998 INRIA and distributed under the
+terms of the GNU Library General Public License version 2, with a
+special exception on clause 6 described in the file LICENSE.
 
 
 AUTHOR AND SUPPORT:
