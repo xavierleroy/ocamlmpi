@@ -334,6 +334,63 @@ val cart_coords: communicator -> rank -> int array
            [Mpi.cart_coords comm r] returns the cartesian coordinates
            of the node having rank [r] in [comm]. *)
 
+(*** Process group management *)
+
+type group
+        (* The type of groups.  Groups represent sets of nodes
+           (processing elements).  Unlike communicators, they cannot
+           be used directly for communication.  Instead, one constructs
+           a group representing the desired set of nodes, then build
+           a communicator for this group.  *)
+
+val comm_create: communicator -> group -> communicator
+        (* [Mpi.comm_create comm group] creates a communicator
+           whose nodes are those described in [group].  [comm] is
+           the initial communicator; the nodes in [group] must be
+           a subset of those in [comm].  The null communicator is
+           returned to the nodes that are not part of [group]. *)
+
+val group_size: group -> int
+        (* Return the size (number of nodes) in the given group. *)
+val group_rank: group -> rank
+        (* Return the rank of the calling node in the given group. *)
+
+val group_translate_ranks: group -> rank array -> group -> rank array
+        (* [Mpi.group_translate_ranks g1 ranks g2] translates the ranks
+           of a number of nodes from one group to another.  [rank]
+           is an array of node ranks relative to group [g1].  The
+           returned array contains the ranks for the same nodes, relative
+           to group [g2]. *)
+
+val comm_group: communicator -> group
+        (* [Mpi.comm_group comm] returns the group of all nodes belonging
+           to the communicator [comm], with the same ranks as in [comm]. *)
+val group_union: group -> group -> group
+val group_intersection: group -> group -> group
+val group_difference: group -> group -> group
+        (* Union, intersection and set difference over groups. *)
+
+val group_incl: group -> rank array -> group
+        (* [Mpi.group_incl group ranks] returns the subset of [group]
+           containing the nodes whose ranks are given in the array [ranks]. *)
+val group_excl: group -> rank array -> group
+        (* [Mpi.group_excl group ranks] returns the subset of [group]
+           containing the nodes whose ranks are not given in the array
+           [ranks]. *)
+
+type group_range = { range_first: int; range_last: int; range_stride: int }
+        (* A group range represents the set of nodes whose ranks are
+           ([range_first]; [range_first + range_stride]; ...; [range_last]). *)
+
+val group_range_incl: group -> group_range array -> group
+        (* [Mpi.group_range_incl group ranges] returns the subset of [group]
+           containing the nodes whose ranks belong to the ranges
+           listed in [ranges]. *)
+val group_range_excl: group -> group_range array -> group
+        (* [Mpi.group_range_excl group ranges] returns the subset of [group]
+           containing the nodes whose ranks do not belong to the ranges
+           listed in [ranges]. *)
+
 (*** Miscellaneous *)
 
 external wtime: unit -> float = "caml_mpi_wtime"

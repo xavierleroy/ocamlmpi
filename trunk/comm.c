@@ -131,3 +131,9 @@ value caml_mpi_cart_coords(value comm, value rank)
   return res;
 }
 
+value caml_mpi_comm_create(value comm, value group)
+{
+  MPI_Comm newcomm;
+  MPI_Comm_create(Comm_val(comm), Group_val(group), &newcomm);
+  return caml_mpi_alloc_comm(newcomm);
+}
