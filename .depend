@@ -1,6 +1,10 @@
 mpi.cmo: mpi.cmi 
 mpi.cmx: mpi.cmi 
+test.cmo: mpi.cmi 
+test.cmx: mpi.cmx 
+test_mandel.cmo: mpi.cmi 
+test_mandel.cmx: mpi.cmx 
+collcomm.o: collcomm.c camlmpi.h
 comm.o: comm.c camlmpi.h
-groupcomm.o: groupcomm.c camlmpi.h
 init.o: init.c camlmpi.h
 msgs.o: msgs.c camlmpi.h

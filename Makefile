@@ -36,13 +36,19 @@ mpi.cmxa: $(OBJS:.cmo=.cmx)
 testmpi: test.ml mpi.cma libcamlmpi.a
 	ocamlc -custom -o testmpi unix.cma mpi.cma test.ml libcamlmpi.a -ccopt -L$(MPILIBDIR) -cclib -lmpi -cclib -lunix
 
+clean::
+	rm -f testmpi
+
 test: testmpi
 	mpirun -np 5 ./testmpi
 
 test_mandel: test_mandel.ml mpi.cmxa libcamlmpi.a
 	ocamlopt -ccopt -static -o test_mandel graphics.cmxa mpi.cmxa test_mandel.ml libcamlmpi.a -ccopt -L$(MPILIBDIR) -cclib -lmpi -cclib -lgraphics -ccopt -L/usr/X11R6/lib -cclib -lX11
 
-clean:
+clean::
+	rm -f test_mandel
+
+clean::
 	rm -f *.cm* *.o libmpi.a
 depend:
 	$(OCAMLDEP) *.ml > .depend
