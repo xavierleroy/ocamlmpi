@@ -20,13 +20,14 @@
 
 static void caml_mpi_finalize_comm(value v)
 {
+  printf("caml_mpi_finalize_comm %x\n", v);
   MPI_Comm_free(&Comm_val(v));
 }
 
 value caml_mpi_alloc_comm(MPI_Comm c)
 {
   value res =
-    alloc_final((sizeof(MPI_Comm) + sizeof(value) - 1) / sizeof(value),
+    alloc_final(1 + (sizeof(MPI_Comm) + sizeof(value) - 1) / sizeof(value),
                 caml_mpi_finalize_comm, 1, 100);
   Comm_val(res) = c;
   return res;

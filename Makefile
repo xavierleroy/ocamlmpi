@@ -40,6 +40,9 @@ testmpi: test.ml mpi.cma libcamlmpi.a
 test: testmpi
 	mpirun -np 5 ./testmpi
 
+test_mandel: test_mandel.ml mpi.cmxa libcamlmpi.a
+	ocamlopt -o test_mandel graphics.cmxa mpi.cmxa test_mandel.ml libcamlmpi.a -ccopt -L$(MPILIBDIR) -cclib -lmpi -cclib -lgraphics -ccopt -L/usr/X11R6/lib -ccopt -lX11
+
 clean:
 	rm -f *.cm* *.o libmpi.a
 depend:
