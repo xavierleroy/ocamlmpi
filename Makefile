@@ -49,7 +49,7 @@ clean::
 	rm -f test_mandel
 
 clean::
-	rm -f *.cm* *.o libmpi.a
+	rm -f *.cm* *.o *.a
 depend:
 	$(OCAMLDEP) *.ml > .depend
 	gcc -MM $(CFLAGS) *.c >> .depend
