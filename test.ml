@@ -323,33 +323,32 @@ let _ =
 
 (* Scan *)
 
-let test_scan scanfun reduceop printfun1 printfun2 data size_res init_res =
-  printf "%d: my data is %a" myrank printfun1 data; print_newline();
-  let res = Array.make size_res init_res in
-  scanfun data res reduceop comm_world;
-  printf "%d: result of scanning is %a" myrank printfun2 res;
+let test_scan scanfun reduceop printfun data =
+  printf "%d: my data is %a" myrank printfun data; print_newline();
+  let res = scanfun data reduceop comm_world in
+  printf "%d: result of scanning is %a" myrank printfun res;
   print_newline();
   barrier comm_world
 
 let _ =
   test_scan scan_int
               Int_sum
-              output_int output_int_array
-              (myrank + 1) size 0;
+              output_int
+              (myrank + 1);
   test_scan scan_float
               Float_sum
-              output_float output_float_array
-              (float myrank +. 1.0) size 0.0;
-  test_scan scan_int_array
+              output_float
+              (float myrank +. 1.0);
+  let ia = Array.make 3 0 in
+  test_scan (fun d op c -> scan_int_array d ia op c; ia)
               Int_sum
-              output_int_array output_int_array
-              [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |]
-              (size * 3) 0;
-  test_scan scan_float_array
+              output_int_array
+              [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
+  let fa = Array.make 3 0.0 in
+  test_scan (fun d op c -> scan_float_array d fa op c; fa)
               Float_sum
-              output_float_array output_float_array
+              output_float_array
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
-              (size * 3) 0.0
 
 (* Comm split *)
 
