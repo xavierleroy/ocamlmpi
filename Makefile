@@ -2,7 +2,7 @@ OCAMLC=ocamlc
 OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
 
-MPI=/usr/local/lib/mpich
+MPILIBDIR=/usr/local/lib/mpich/lib/LINUX/ch_p4
 CAMLLIB=/usr/local/lib/ocaml
 
 CC=gcc
@@ -10,8 +10,6 @@ CFLAGS=-I$(CAMLLIB) -I$(MPI)/include -O -g -Wall
 
 COBJS=init.o comm.o msgs.o collcomm.o
 OBJS=mpi.cmo
-
-MPILIBDIR=/usr/local/lib/LINUX/ch_p4
 
 all: libcamlmpi.a mpi.cma mpi.cmxa
 
@@ -41,7 +39,7 @@ test: testmpi
 	mpirun -np 5 ./testmpi
 
 test_mandel: test_mandel.ml mpi.cmxa libcamlmpi.a
-	ocamlopt -o test_mandel graphics.cmxa mpi.cmxa test_mandel.ml libcamlmpi.a -ccopt -L$(MPILIBDIR) -cclib -lmpi -cclib -lgraphics -ccopt -L/usr/X11R6/lib -ccopt -lX11
+	ocamlopt -ccopt -static -o test_mandel graphics.cmxa mpi.cmxa test_mandel.ml libcamlmpi.a -ccopt -L$(MPILIBDIR) -cclib -lmpi -cclib -lgraphics -ccopt -L/usr/X11R6/lib -cclib -lX11
 
 clean:
 	rm -f *.cm* *.o libmpi.a
