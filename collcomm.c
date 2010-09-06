@@ -276,7 +276,6 @@ value caml_mpi_reduce_intarray(value data, value result, value op,
   int i, myrank;
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
-  for (i = 0; i < len; i++) Field(data, i) = Long_val(Field(data, i));
   /* Do the reduce */
   MPI_Reduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
              reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));

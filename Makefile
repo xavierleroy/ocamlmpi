@@ -3,8 +3,8 @@ OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
 
 DESTDIR=`$(OCAMLC) -where`/ocamlmpi
-MPIINCDIR=/usr/local/lib/mpich/include
-MPILIBDIR=/usr/local/lib/mpich/lib/LINUX/ch_p4
+MPIINCDIR=/usr/lib/mpich/include
+MPILIBDIR=/usr/lib/mpich/lib/LINUX/ch_p4
 
 CC=gcc
 CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O -g -Wall
@@ -59,3 +59,5 @@ depend:
 
 include .depend
 
+clean::
+	$(MAKE) -C test clean
