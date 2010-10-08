@@ -25,6 +25,19 @@ extern void output_value_to_malloc(value v, value flags,
                                    /*out*/ char ** buf, /*out*/ long * len);
 extern value input_value_from_malloc(char * data, long ofs);
 
+#define Val_none Val_int(0)
+
+/*#define Some_val(v) Field(v,0)*/
+
+static inline value Val_some( value v )
+{
+  CAMLparam1( v );
+  CAMLlocal1( some );
+  some = caml_alloc(1, 0);
+  Store_field( some, 0, v );
+  CAMLreturn( some );
+}
+
 /* Sending */
 
 value caml_mpi_send(value data, value flags,
@@ -84,6 +97,29 @@ value caml_mpi_probe(value source, value tag, value comm)
   Field(res, 1) = Val_int(status.MPI_SOURCE);
   Field(res, 2) = Val_int(status.MPI_TAG);
   return res;
+}
+
+value caml_mpi_iprobe(value source, value tag, value comm)
+{
+  MPI_Status status;
+  int count, flag;
+  value res;
+
+  MPI_Iprobe(Int_val(source), Int_val(tag), Comm_val(comm), &flag, &status);
+
+  if (flag)
+  {
+    MPI_Get_count(&status, MPI_BYTE, &count);
+    res = alloc_tuple(3);
+    Field(res, 0) = Val_int(count);
+    Field(res, 1) = Val_int(status.MPI_SOURCE);
+    Field(res, 2) = Val_int(status.MPI_TAG);
+    return Val_some(res);
+  }
+  else
+  {
+    return Val_none;
+  }
 }
 
 /* Receive */
