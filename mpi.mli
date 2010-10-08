@@ -85,6 +85,11 @@ val probe: rank -> tag -> communicator -> rank * tag
            and the actual tag attached to the message.  The message itself
            is not read, and can be retrieved later with [Mpi.receive]
            or [Mpi.receive_status]. *)
+val iprobe: rank -> tag -> communicator -> (rank * tag) option
+        (* [Mpi.iprobe src tag comm] is a non-blocking counterpart to
+           {!probe}.  If there is no matching message waiting it returns
+           [None].  Otherwise, it returns [Some (rank, tag)] like
+           {!probe}. *)
 val any_tag: tag
 val any_source: rank
         (* The special values of the [tag] and [src] arguments of

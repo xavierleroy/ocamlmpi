@@ -82,6 +82,10 @@ external probe:
     int -> int -> communicator -> int * int * int
     = "caml_mpi_probe"
 
+external iprobe:
+    int -> int -> communicator -> (int * int * int) option
+    = "caml_mpi_iprobe"
+
 external receive_basic:
     int -> rank -> tag -> communicator -> 'a
     = "caml_mpi_receive"
@@ -98,6 +102,11 @@ let receive_status source tag comm =
 let probe source tag comm =
   let (len, actual_source, actual_tag) = probe source tag comm in
   (actual_source, actual_tag)
+
+let iprobe source tag comm =
+  match iprobe source tag comm with
+  | None -> None
+  | Some (len, actual_source, actual_tag) -> Some (actual_source, actual_tag)
 
 external send_int:
     int -> rank -> tag -> communicator -> unit
