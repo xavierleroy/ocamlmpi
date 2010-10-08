@@ -3,8 +3,8 @@ OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
 
 DESTDIR=`$(OCAMLC) -where`/ocamlmpi
-MPIINCDIR=/usr/lib/mpich/include
-MPILIBDIR=/usr/lib/mpich/lib/LINUX/ch_p4
+MPIINCDIR=/usr/include/mpich2
+MPILIBDIR=/usr/lib
 
 CC=gcc
 CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O -g -Wall
@@ -12,19 +12,19 @@ CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O -g -Wall
 COBJS=init.o comm.o msgs.o collcomm.o groups.o utils.o
 OBJS=mpi.cmo
 
-all: libcamlmpi.a mpi.cma mpi.cmxa
+all: libcamlmpi.a byte
 
 install:
-	ocamlfind install mpi META mpi.mli mpi.cmi mpi.cma $(wildcard mpi.cmxa) $(wildcard mpi.a) libcamlmpi.a
+	ocamlfind install mpi META mpi.mli mpi.cmi $(wildcard mpi.cm*a) $(wildcard *mpi.a)
 
 libcamlmpi.a: $(COBJS)
 	rm -f $@
 	ar rc $@ $(COBJS)
 
-mpi.cma: $(OBJS)
+byte: $(OBJS)
 	$(OCAMLC) -a -o mpi.cma -custom $(OBJS) -cclib -lcamlmpi -ccopt -L$(MPILIBDIR) -cclib -lmpi
 
-mpi.cmxa: $(OBJS:.cmo=.cmx)
+opt: $(OBJS:.cmo=.cmx)
 	$(OCAMLOPT) -a -o mpi.cmxa $(OBJS:.cmo=.cmx) -cclib -lcamlmpi -ccopt -L$(MPILIBDIR) -cclib -lmpi
 
 .SUFFIXES: .ml .mli .cmo .cmi .cmx
