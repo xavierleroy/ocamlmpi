@@ -15,7 +15,7 @@ OBJS=mpi.cmo
 all: libcamlmpi.a mpi.cma mpi.cmxa
 
 install:
-	ocamlfind install mpi META mpi.mli mpi.cmi mpi.cma mpi.cmxa mpi.a libcamlmpi.a
+	ocamlfind install mpi META mpi.mli mpi.cmi mpi.cma $(wildcard mpi.cmxa) $(wildcard mpi.a) libcamlmpi.a
 
 libcamlmpi.a: $(COBJS)
 	rm -f $@
