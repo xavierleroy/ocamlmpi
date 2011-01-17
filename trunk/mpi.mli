@@ -54,6 +54,7 @@ val send: 'a -> rank -> tag -> communicator -> unit
            synchronous or asynchronous; that is, [Mpi.send] can block
            until the target node receives the message, or [Mpi.send]
            can return before the target node has received the message. *)
+
 val receive: rank -> tag -> communicator -> 'a
         (* [Mpi.receive src tag comm] blocks until a message is available,
            and returns the data contained in that message.
@@ -123,12 +124,57 @@ val receive_float_array: float array -> rank -> tag -> communicator -> unit
            [Mpi.send_*] functions and receive it with the generic
            [Mpi.receive] function, and conversely. *)
 
+(*** Non-blocking communication *)
+
+type request
+  (* Encapsulates MPI Request object, also contains the 
+     associated send/recv buffer in the wrapper object *) 
+
+val isend: 'a -> rank -> tag -> communicator -> request
+
+val isend_varlength: 'a -> rank -> tag -> communicator -> request * request
+  (* Post non-blocking send operation.
+     [Mpi.send d dst tag comm] posts a send operation for data [d]
+     to the node that has rank [dst] in communicator [comm 
+     with tag [tag].  
+     Same parameters as [Mpi.send], but returns immediately with 
+     a pair of Mpi.request objects after posting two send operations for
+     transmission of message length and the message itself
+     buffer. The request objects can be used to wait for the 
+     completion of the send operation.
+  *)
+
+
+val ireceive: int -> rank -> tag -> communicator -> request
+
+val ireceive_varlength: rank -> tag -> communicator -> request
+  (* Post non-blocking receive operation. 
+     Same parameters as [Mpi.receive], but returns with received 
+     buffer length and an Mpi.request object, which can be used to 
+     wait for the completion of the receive operation.
+     This call currently blocks until the buffer length has been received,
+     therefore it has to follow the asynchronous send operation in
+     call sequence.
+     TODO: A better solution using multi-threading
+  *)
+
+val wait: request -> unit 
+  (* Wait for the completion of a non-blocking operation *)
+
+val wait_pair: request * request -> unit
+  (* Wait for the completion of an ordered pair of non-blocking 
+     operations *)
+
+val wait_receive: request -> 'a
+  (* Wait for the completion of a non-blocking receive operation
+     and return the received object *)
+
 (*** Group communication *)
 
 val barrier: communicator -> unit
         (* [Mpi.barrier comm] suspends the calling process until all
            nodes in communicator [comm] are executing [Mpi.barrier comm].
-           Then all nodes return from [Mpi.barrier] and continue executing. *)
+           Then all nodes return from [Mpi.barrier] and continue executing.        *)
 
 (** Broadcast *)
 

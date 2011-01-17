@@ -3,6 +3,7 @@
 (*                         The Caml/MPI interface                      *)
 (*                                                                     *)
 (*            Xavier Leroy, projet Cristal, INRIA Rocquencourt         *)
+(*            Non-blocking calls added by Eray Ozkural                 *)
 (*                                                                     *)
 (*  Copyright 1998 Institut National de Recherche en Informatique et   *)
 (*  en Automatique.  All rights reserved.  This file is distributed    *)
@@ -136,6 +137,37 @@ external receive_float_array:
     float array -> rank -> tag -> communicator -> unit
     = "caml_mpi_receive_floatarray"
 
+(* Non-blocking communication *)
+
+type request
+
+external isend_basic:
+  'a -> Marshal.extern_flags list -> rank -> tag -> communicator -> request
+  = "caml_mpi_isend"
+
+let isend data dest tag comm =
+  isend_basic data [Marshal.Closures] dest tag comm
+
+external isend_basic_varlength:
+  'a -> Marshal.extern_flags list -> rank -> tag -> communicator -> 
+  request * request
+  = "caml_mpi_isend_varlength"
+
+let isend_varlength data dest tag comm =
+  isend_basic_varlength data [Marshal.Closures] dest tag comm
+
+external ireceive:
+  int -> rank -> tag -> communicator -> request = "caml_mpi_ireceive"
+
+external ireceive_varlength:
+  rank -> tag -> communicator -> request 
+  = "caml_mpi_ireceive_varlength"
+
+external wait: request -> unit = "caml_mpi_wait"
+
+let wait_pair (req1,req2) = wait req1; wait req2
+
+external wait_receive: request -> 'a = "caml_mpi_wait_receive"
 
 (* Barrier *)
 
