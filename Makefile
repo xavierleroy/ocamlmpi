@@ -6,8 +6,8 @@ DESTDIR=`$(OCAMLC) -where`/ocamlmpi
 MPIINCDIR=/usr/include/mpich2
 MPILIBDIR=/usr/lib
 
-CC=gcc
-CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O -g -Wall
+CC=mpicc
+CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O2 -g -Wall
 
 COBJS=init.o comm.o msgs.o collcomm.o groups.o utils.o
 OBJS=mpi.cmo
@@ -37,7 +37,10 @@ opt: $(OBJS:.cmo=.cmx)
 	$(OCAMLOPT) -c $<
 
 testmpi: test.ml mpi.cma libcamlmpi.a
-	ocamlc -o testmpi unix.cma mpi.cma test.ml -ccopt -L.
+	ocamlc -g -o testmpi unix.cma mpi.cma test.ml -ccopt -L.
+
+testmpinb: testnb.ml mpi.cma libcamlmpi.a
+	ocamlc -cc mpicc -g -o testmpinb unix.cma mpi.cma testnb.ml -ccopt -L.
 
 clean::
 	rm -f testmpi
