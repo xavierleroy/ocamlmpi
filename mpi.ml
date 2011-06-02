@@ -141,6 +141,10 @@ external receive_float_array:
 
 type request
 
+external alloc_request : unit -> request = "caml_mpi_alloc_request"
+
+let null_request = alloc_request ()
+
 external isend_basic:
   'a -> Marshal.extern_flags list -> rank -> tag -> communicator -> request
   = "caml_mpi_isend"

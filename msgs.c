@@ -213,6 +213,7 @@ static void caml_mpi_finalize_request(value v)
   stat_free(Buffer_req_val(v));
 }
 
+
 value caml_mpi_alloc_request()
 {
   value res = alloc_final(3, caml_mpi_finalize_request, 1, 100);
@@ -333,6 +334,7 @@ value caml_mpi_wait(value req)
   ret = MPI_Wait(Request_req_val(req), &status);
   if (ret!=MPI_SUCCESS)
    printf("wait error!\n");
+  leave_blocking_section();
   /* TODO MPI_REQUEST_NULL */
   CAMLreturn(Val_unit);
 }
