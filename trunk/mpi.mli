@@ -130,6 +130,8 @@ type request
   (* Encapsulates MPI Request object, also contains the 
      associated send/recv buffer in the wrapper object *) 
 
+val null_request: request
+
 val isend: 'a -> rank -> tag -> communicator -> request
 
 val isend_varlength: 'a -> rank -> tag -> communicator -> request * request
