@@ -157,7 +157,6 @@ val ireceive_varlength: rank -> tag -> communicator -> request
      This call currently blocks until the buffer length has been received,
      therefore it has to follow the asynchronous send operation in
      call sequence.
-     TODO: A better solution using multi-threading
   *)
 
 val wait: request -> unit 

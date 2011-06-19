@@ -17,7 +17,7 @@
 
 #define Comm_val(comm) (*((MPI_Comm *) &Field(comm, 1)))
 #define Group_val(grp) (*((MPI_Group *) &Field(grp, 1)))
-#define Request_req_val(req) (*((MPI_Request **) &Field(req, 1)))
+#define Request_req_val(req) (*((MPI_Request *) &Field(req, 1)))
 #define Buffer_req_val(req)   (*((char **) &Field(req, 2)))
 
 extern value caml_mpi_alloc_comm(MPI_Comm c);
