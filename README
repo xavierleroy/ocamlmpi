@@ -54,13 +54,15 @@ That is:
 
 BUILDING OCAMLMPI:
 
-Edit the Makefile and set the MPIINCDIR and MPILIBDIR
-variables to the right directories:
+Edit the Makefile and set the following variables according to your
+MPI installation:
 
 MPIINCDIR    directory containing the MPI include file <mpi.h>
 MPILIBDIR    directory containing the MPI library -lmpi
+MPICC        path to the 'mpicc' executable
+MPIRUN       path to the 'mpirun' executable
 
-Also adjust CC and CFLAGS if necessary.  Then do "make all" and
+You may also adjust CFLAGS if necessary.  Then do "make all" and
 optionally "make opt" if you want to build the native code library.
 
 For final installation: become super-user and do "make install".

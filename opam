@@ -1,0 +1,23 @@
+opam-version: "1.2"
+maintainer: "xavier.leroy@inria.fr"
+authors: ["Xavier Leroy"]
+homepage: "https://github.com/xavierleroy/ocamlmpi"
+bug-reports: "https://github.com/xavierleroy/ocamlmpi/issues"
+dev-repo: "git://github.com/xavierleroy/ocamlmpi"
+
+build: [
+  [make "all" "opt"
+    "MPIINCDIR=%{conf-mpi:includedir}%"
+    "MPILIBDIR=%{conf-mpi:libdir}%"
+    "MPICC=%{conf-mpi:binpath}%mpicc"
+    "MPIRUN=%{conf-mpi:binpath}%mpirun"
+  ]
+]
+install: [[make "install"]]
+remove: [[make "uninstall"]]
+depends: ["conf-mpi" "ocamlfind"]
+depexts: [
+  [["debian"] ["mpi-default-dev"]]
+  [["ubuntu"] ["mpi-default-dev"]]
+]
+
