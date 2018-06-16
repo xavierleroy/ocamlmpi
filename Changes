@@ -1,5 +1,8 @@
-Version 1.02:
+Version 1.03:
 - Updated String -> Bytes
+
+Version 1.02:
+- OPAM Packaging
 
 Version 1.01:
 - Relicensed under the LGPL
