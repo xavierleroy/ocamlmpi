@@ -1,3 +1,6 @@
+Version 1.02:
+- Updated String -> Bytes
+
 Version 1.01:
 - Relicensed under the LGPL
 - Modernized build and installation procedure.

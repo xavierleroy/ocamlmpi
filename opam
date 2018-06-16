@@ -1,9 +1,11 @@
 opam-version: "1.2"
+version: "1.02"
 maintainer: "xavier.leroy@inria.fr"
 authors: ["Xavier Leroy"]
 homepage: "https://github.com/xavierleroy/ocamlmpi"
 bug-reports: "https://github.com/xavierleroy/ocamlmpi/issues"
 dev-repo: "git://github.com/xavierleroy/ocamlmpi"
+license: "LGPL"
 
 build: [
   [make "all" "opt"
