@@ -22,4 +22,4 @@ depexts: [
   [["debian"] ["mpi-default-dev"]]
   [["ubuntu"] ["mpi-default-dev"]]
 ]
-available: [[ ocaml-version >= "4.03" ]]
+available: [[ ocaml-version >= "4.02.3" ]]
