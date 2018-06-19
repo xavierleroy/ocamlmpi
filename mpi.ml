@@ -13,7 +13,6 @@
 (***********************************************************************)
 
 (* $Id$ *)
-let empty_buffer = Bytes.of_string "";;
 
 (* Initialization *)
 
@@ -265,7 +264,7 @@ let scatter data root comm =
     (* Allocate receive buffer *)
     let recv_buffer = Bytes.create len in
     (* Do the scatter *)
-    scatter_bytes empty_buffer [||] recv_buffer root comm;
+    scatter_bytes Bytes.empty [||] recv_buffer root comm;
     (* Return value received *)
     Marshal.from_bytes recv_buffer 0
   end
@@ -326,7 +325,7 @@ let gather data root comm =
     (* Send our length *)
     gather_int (Bytes.length send_buffer) [||] root comm;
     (* Send our data *)
-    gather_bytes send_buffer empty_buffer [||] root comm;
+    gather_bytes send_buffer Bytes.empty [||] root comm;
     (* Return dummy results *)
     [||]
   end
