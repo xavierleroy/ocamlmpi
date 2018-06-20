@@ -1,5 +1,7 @@
 Version 1.03:
-- Updated String -> Bytes
+- Ensure compatibility with OCaml 4.06 and up by using bytes instead of strings for internal buffers.
+  The API does not change.
+  (Contributed by Anthony Scemama, review by Timothy Bourke)
 
 Version 1.02:
 - OPAM Packaging
