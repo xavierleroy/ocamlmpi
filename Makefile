@@ -2,7 +2,7 @@ OCAMLC=ocamlc
 OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
 
-MPIINCDIR=/usr/include/mpich2
+MPIINCDIR=/usr/include/mpi
 MPILIBDIR=/usr/lib
 MPICC=mpicc
 MPIRUN=mpirun
