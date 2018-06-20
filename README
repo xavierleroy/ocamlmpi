@@ -1,6 +1,4 @@
-This is OcamlMPI version 1.01, a Caml binding to the Message Passing
-Interface (MPI).
-
+This is OcamlMPI, an OCaml binding to the Message Passing Interface (MPI)
 
 WHAT IS MPI?
 
@@ -62,6 +60,8 @@ MPILIBDIR    directory containing the MPI library -lmpi
 MPICC        path to the 'mpicc' executable
 MPIRUN       path to the 'mpirun' executable
 
+The default settings look appropriate for Debian and Ubuntu.
+
 You may also adjust CFLAGS if necessary.  Then do "make all" and
 optionally "make opt" if you want to build the native code library.
 
@@ -78,10 +78,10 @@ There are two test programs included:
 USING OCAMLMPI:
 
 Bytecode:
-        ocamlc -I +ocamlmpi mpi.cma <your files>
+        ocamlfind ocamlc -linkpkg mpi <your files>
 
 Native-code:
-        ocamlopt -I +ocamlmpi mpi.cmxa <your files>
+        ocamlfind ocamlopt -linkpkg mpi <your files>
 
 
 LICENSING:
