@@ -1,0 +1,8 @@
+*.a
+*.cm?
+*.cmxa
+*.cmxs
+*.o
+testmpi
+testmpinb
+test_mandel
