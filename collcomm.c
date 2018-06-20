@@ -273,7 +273,7 @@ value caml_mpi_reduce_intarray(value data, value result, value op,
                                value root, value comm)
 {
   mlsize_t len = Wosize_val(data);
-  int i, myrank;
+  int myrank;
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */

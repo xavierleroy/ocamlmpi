@@ -141,7 +141,7 @@ let test_broadcast broadcastfun printfun data =
   if myrank = 0 then begin
     printf "0: broadcasting %a" printfun data; print_newline()
   end;
-  let res = broadcastfun data 0 comm_world in
+  ignore (broadcastfun data 0 comm_world);
   printf "%d: received %a" myrank printfun data; print_newline()
 
 let _ =
