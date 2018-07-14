@@ -15,7 +15,8 @@ OBJS=mpi.cmo
 all: libcamlmpi.a byte
 
 install:
-	ocamlfind install mpi META mpi.mli mpi.cmi $(wildcard mpi.cm*a) $(wildcard *mpi.a)
+	ocamlfind install mpi META mpi.mli mpi.cmi \
+	    $(wildcard mpi*.cmx) $(wildcard mpi.cm*a) $(wildcard *mpi.a)
 
 uninstall:
 	ocamlfind remove mpi
