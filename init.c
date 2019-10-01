@@ -25,7 +25,7 @@
 
 /* Error handling */
 
-static value * caml_mpi_exn = NULL;
+static const value * caml_mpi_exn = NULL;
 
 static void caml_mpi_error_handler(MPI_Comm * comm, int * errcode, ...)
 {
