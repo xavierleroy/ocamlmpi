@@ -38,7 +38,7 @@ let mandel_row (x0,y0,x1,y1) n res j =
   let dx = (x1-.x0)/.(float n) in
   let dy = (y1-.y0)/.(float n) in
   let zi = y0 +. (dy *. (float j)) in
-  let line = Array.create n black in
+  let line = Array.make n black in
   for i = 0 to n - 1 do
     let zr = x0 +. (dx *. (float i)) in
     line.(i) <- colorof (color_pixel zr zi res) res
@@ -79,14 +79,15 @@ let server n =
     plot_row row;
     decr numlines
   done;
-  print_string "Press <RETURN> to terminate..."; flush stdout; read_line(); ()
+  print_string "Press <RETURN> to terminate..."; flush stdout; 
+  ignore (read_line())
 
 (* Entry point *)
 
 let _ =
   let window = (-1.0, -1.0, 2.0, 1.0) in
-  let n = 500 in
+  let n = 1200 in
   if Mpi.comm_rank Mpi.comm_world = 0
   then server n
-  else worker window n 500;
+  else worker window n 2000;
   Mpi.barrier Mpi.comm_world

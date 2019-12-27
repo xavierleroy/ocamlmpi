@@ -53,7 +53,7 @@ test: testmpi
 	$(MPIRUN) -np 5 ./testmpi
 
 test_mandel: test_mandel.ml mpi.cmxa libcamlmpi.a
-	ocamlopt -o test_mandel graphics.cmxa mpi.cmxa test_mandel.ml -ccopt -L.
+	ocamlfind ocamlopt -package graphics -linkpkg -o test_mandel mpi.cmxa test_mandel.ml -ccopt -L.
 
 clean::
 	rm -f test_mandel
