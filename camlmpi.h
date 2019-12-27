@@ -38,11 +38,11 @@ extern double * caml_mpi_output_floatarray_at_node(value data, mlsize_t len,
 
 #else
 
-#define caml_mpi_input_floatarray(data,len) ((double *)(data))
-#define caml_mpi_output_floatarray(data,len) ((double *)(data))
+#define caml_mpi_input_floatarray(data,len) ((void)(len), (double *)(data))
+#define caml_mpi_output_floatarray(data,len) ((void)(len), (double *)(data))
 #define caml_mpi_free_floatarray(d)
 #define caml_mpi_commit_floatarray(d,data,len)
-#define caml_mpi_input_floatarray_at_node(data,len,root,comm) ((double *)(data))
-#define caml_mpi_output_floatarray_at_node(data,len,root,comm) ((double *)(data))
+#define caml_mpi_input_floatarray_at_node(data,len,root,comm) ((void)(len), (double *)(data))
+#define caml_mpi_output_floatarray_at_node(data,len,root,comm) ((void)(len), (double *)(data))
 
 #endif
