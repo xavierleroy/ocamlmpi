@@ -25,7 +25,7 @@
 
 /* Error handling */
 
-static value * caml_mpi_exn = NULL;
+static const value * caml_mpi_exn = NULL;
 
 static void caml_mpi_error_handler(MPI_Comm * comm, int * errcode, ...)
 {
@@ -34,13 +34,13 @@ static void caml_mpi_error_handler(MPI_Comm * comm, int * errcode, ...)
   value msg;
 
   MPI_Error_string(*errcode, errmsg, &resultlen);
-  msg = copy_string(errmsg);
+  msg = caml_copy_string(errmsg);
   if (caml_mpi_exn == NULL) {
     caml_mpi_exn = caml_named_value("Mpi.Error");
     if (caml_mpi_exn == NULL)
-      invalid_argument("Exception MPI.Error not initialized");
+      caml_invalid_argument("Exception MPI.Error not initialized");
   }
-  raise_with_arg(*caml_mpi_exn, msg);
+  caml_raise_with_arg(*caml_mpi_exn, msg);
 }
 
 /* Initialization and finalization */
@@ -52,7 +52,7 @@ value caml_mpi_init(value arguments)
   MPI_Errhandler hdlr;
 
   argc = Wosize_val(arguments);
-  argv = stat_alloc((argc + 1) * sizeof(char *));
+  argv = caml_stat_alloc((argc + 1) * sizeof(char *));
   for (i = 0; i < argc; i++) argv[i] = String_val(Field(arguments, i));
   argv[i] = NULL;
   MPI_Init(&argc, &argv);
@@ -76,6 +76,6 @@ value caml_mpi_finalize(value unit)
 
 value caml_mpi_wtime(value unit)
 {
-  return copy_double(MPI_Wtime());
+  return caml_copy_double(MPI_Wtime());
 }
 

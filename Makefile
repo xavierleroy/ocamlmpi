@@ -7,7 +7,7 @@ MPILIBDIR=/usr/lib
 MPICC=mpicc
 MPIRUN=mpirun
 
-CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O2 -g -Wall
+CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O2 -g -Wall -DCAML_NAME_SPACE
 
 COBJS=init.o comm.o msgs.o collcomm.o groups.o utils.o
 OBJS=mpi.cmo
@@ -53,7 +53,7 @@ test: testmpi
 	$(MPIRUN) -np 5 ./testmpi
 
 test_mandel: test_mandel.ml mpi.cmxa libcamlmpi.a
-	ocamlopt -o test_mandel graphics.cmxa mpi.cmxa test_mandel.ml -ccopt -L.
+	ocamlfind ocamlopt -package graphics -linkpkg -o test_mandel mpi.cmxa test_mandel.ml -ccopt -L.
 
 clean::
 	rm -f test_mandel

@@ -33,7 +33,7 @@ value caml_mpi_barrier(value comm)
 
 value caml_mpi_broadcast(value buffer, value root, value comm)
 {
-  MPI_Bcast(String_val(buffer), string_length(buffer), MPI_BYTE,
+  MPI_Bcast(String_val(buffer), caml_string_length(buffer), MPI_BYTE,
             Int_val(root), Comm_val(comm));
   return Val_unit;
 }
@@ -49,7 +49,7 @@ value caml_mpi_broadcast_float(value data, value root, value comm)
 {
   double d = Double_val(data);
   MPI_Bcast(&d, 1, MPI_DOUBLE, Int_val(root), Comm_val(comm));
-  return copy_double(d);
+  return caml_copy_double(d);
 }
 
 value caml_mpi_broadcast_intarray(value data, value root, value comm)
@@ -78,8 +78,8 @@ static void caml_mpi_counts_displs(value lengths,
 
   size = Wosize_val(lengths);
   if (size > 0) {
-    *counts = stat_alloc(size * sizeof(int));
-    *displs = stat_alloc(size * sizeof(int));
+    *counts = caml_stat_alloc(size * sizeof(int));
+    *displs = caml_stat_alloc(size * sizeof(int));
     for (i = 0, disp = 0; i < size; i++) {
       (*counts)[i] = Int_val(Field(lengths, i));
       (*displs)[i] = disp;
@@ -99,11 +99,11 @@ value caml_mpi_scatter(value sendbuf, value sendlengths,
 
   caml_mpi_counts_displs(sendlengths, &sendcounts, &displs);
   MPI_Scatterv(String_val(sendbuf), sendcounts, displs, MPI_BYTE,
-               String_val(recvbuf), string_length(recvbuf), MPI_BYTE,
+               String_val(recvbuf), caml_string_length(recvbuf), MPI_BYTE,
                Int_val(root), Comm_val(comm));
   if (sendcounts != NULL) {
-    stat_free(sendcounts);
-    stat_free(displs);
+    caml_stat_free(sendcounts);
+    caml_stat_free(displs);
   }
   return Val_unit;
 }
@@ -126,7 +126,7 @@ value caml_mpi_scatter_float(value data, value root, value comm)
   MPI_Scatter(src, 1, MPI_DOUBLE, &dst, 1, MPI_DOUBLE,
               Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(src);
-  return copy_double(dst);
+  return caml_copy_double(dst);
 }
 
 value caml_mpi_scatter_intarray(value source, value dest,
@@ -163,12 +163,12 @@ value caml_mpi_gather(value sendbuf,
   int * recvcounts, * displs;
 
   caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
-  MPI_Gatherv(String_val(sendbuf), string_length(sendbuf), MPI_BYTE,
+  MPI_Gatherv(String_val(sendbuf), caml_string_length(sendbuf), MPI_BYTE,
               String_val(recvbuf), recvcounts, displs, MPI_BYTE,
               Int_val(root), Comm_val(comm));
   if (recvcounts != NULL) {
-    stat_free(recvcounts);
-    stat_free(displs);
+    caml_stat_free(recvcounts);
+    caml_stat_free(displs);
   }
   return Val_unit;
 }
@@ -214,11 +214,11 @@ value caml_mpi_allgather(value sendbuf,
   int * recvcounts, * displs;
 
   caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
-  MPI_Allgatherv(String_val(sendbuf), string_length(sendbuf), MPI_BYTE,
+  MPI_Allgatherv(String_val(sendbuf), caml_string_length(sendbuf), MPI_BYTE,
                  String_val(recvbuf), recvcounts, displs, MPI_BYTE,
                  Comm_val(comm));
-  stat_free(recvcounts);
-  stat_free(displs);
+  caml_stat_free(recvcounts);
+  caml_stat_free(displs);
   return Val_unit;
 }
 
@@ -293,7 +293,7 @@ value caml_mpi_reduce_float(value data, value op, value root, value comm)
   double r = 0.0;
   MPI_Reduce(&d, &r, 1, MPI_DOUBLE,
              reduce_floatop[Int_val(op)], Int_val(root), Comm_val(comm));
-  return copy_double(r);
+  return caml_copy_double(r);
 }
 
 value caml_mpi_reduce_floatarray(value data, value result, value op,
@@ -343,7 +343,7 @@ value caml_mpi_allreduce_float(value data, value op, value comm)
   double r;
   MPI_Allreduce(&d, &r, 1, MPI_DOUBLE,
                 reduce_floatop[Int_val(op)], Comm_val(comm));
-  return copy_double(r);
+  return caml_copy_double(r);
 }
 
 value caml_mpi_allreduce_floatarray(value data, value result, value op,
@@ -393,7 +393,7 @@ value caml_mpi_scan_float(value data, value op, value comm)
 
   MPI_Scan(&d, &r, 1, MPI_DOUBLE,
            reduce_floatop[Int_val(op)], Comm_val(comm));
-  return copy_double(r);
+  return caml_copy_double(r);
 }
 
 value caml_mpi_scan_floatarray(value data, value result, value op, value comm)

@@ -29,8 +29,8 @@ static void caml_mpi_finalize_group(value v)
 value caml_mpi_alloc_group(MPI_Group g)
 {
   value res =
-    alloc_final(1 + (sizeof(MPI_Group) + sizeof(value) - 1) / sizeof(value),
-                caml_mpi_finalize_group, 1, 100);
+    caml_alloc_final(1 + (sizeof(MPI_Group) + sizeof(value) - 1) / sizeof(value),
+                     caml_mpi_finalize_group, 1, 100);
   Group_val(res) = g;
   return res;
 }
@@ -52,18 +52,18 @@ value caml_mpi_group_rank(value group)
 value caml_mpi_group_translate_ranks(value group1, value ranks, value group2)
 {
   int n = Wosize_val(ranks);
-  int * ranks1 = stat_alloc(n * sizeof(int));
-  int * ranks2 = stat_alloc(n * sizeof(int));
+  int * ranks1 = caml_stat_alloc(n * sizeof(int));
+  int * ranks2 = caml_stat_alloc(n * sizeof(int));
   int i;
   value res;
 
   for (i = 0; i < n; i++) ranks1[i] = Int_val(Field(ranks, i));
   MPI_Group_translate_ranks(Group_val(group1), n, ranks1,
                             Group_val(group2), ranks2);
-  res = alloc(n, 0);
+  res = caml_alloc(n, 0);
   for (i = 0; i < n; i++) Field(res, i) = Val_int(ranks2[i]);
-  stat_free(ranks1);
-  stat_free(ranks2);
+  caml_stat_free(ranks1);
+  caml_stat_free(ranks2);
   return res;
 }
 
@@ -99,12 +99,12 @@ value caml_mpi_group_incl(value group, value vranks)
 {
   MPI_Group newgroup;
   int n = Wosize_val(vranks);
-  int * ranks = stat_alloc(n * sizeof(int));
+  int * ranks = caml_stat_alloc(n * sizeof(int));
   int i;
 
   for (i = 0; i < n; i++) ranks[i] = Int_val(Field(vranks, i));
   MPI_Group_incl(Group_val(group), n, ranks, &newgroup);
-  stat_free(ranks);
+  caml_stat_free(ranks);
   return caml_mpi_alloc_group(newgroup);
 }
 
@@ -112,12 +112,12 @@ value caml_mpi_group_excl(value group, value vranks)
 {
   MPI_Group newgroup;
   int n = Wosize_val(vranks);
-  int * ranks = stat_alloc(n * sizeof(int));
+  int * ranks = caml_stat_alloc(n * sizeof(int));
   int i;
 
   for (i = 0; i < n; i++) ranks[i] = Int_val(Field(vranks, i));
   MPI_Group_excl(Group_val(group), n, ranks, &newgroup);
-  stat_free(ranks);
+  caml_stat_free(ranks);
   return caml_mpi_alloc_group(newgroup);
 }
 
@@ -126,7 +126,7 @@ static void caml_mpi_extract_ranges(value vranges,
                                     /*out*/ int (**rng)[3])
 {
   int n = Wosize_val(vranges);
-  int (*ranges)[3] = stat_alloc(n * sizeof(int[3]));
+  int (*ranges)[3] = caml_stat_alloc(n * sizeof(int[3]));
   int i;
   for (i = 0; i < n; i++) {
     value rng = Field(vranges, i);
@@ -145,7 +145,7 @@ value caml_mpi_group_range_incl(value group, value vranges)
   MPI_Group newgroup;
   caml_mpi_extract_ranges(vranges, &num, &ranges);
   MPI_Group_range_incl(Group_val(group), num, ranges, &newgroup);
-  stat_free(ranges);
+  caml_stat_free(ranges);
   return caml_mpi_alloc_group(newgroup);
 }
 
@@ -156,7 +156,7 @@ value caml_mpi_group_range_excl(value group, value vranges)
   MPI_Group newgroup;
   caml_mpi_extract_ranges(vranges, &num, &ranges);
   MPI_Group_range_excl(Group_val(group), num, ranges, &newgroup);
-  stat_free(ranges);
+  caml_stat_free(ranges);
   return caml_mpi_alloc_group(newgroup);
 }
 

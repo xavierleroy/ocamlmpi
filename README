@@ -14,12 +14,13 @@ networks.
 
 More info on MPI is available at:
 
-     http://www.mcs.anl.gov/mpi/index.html
+     http://www.mcs.anl.gov/mpi/
 
-MPICH is a popular, free implementation of MPI for network of
-Unix workstations.  It is available at:
+MPICH and OpenMPI are two popular, free implementations of MPI.
+They are available at:
 
-     http://www.mcs.anl.gov/mpi/mpich/index.html
+     http://www.mpich.org/
+     https://www.open-mpi.org/
 
 
 THE OCAMLMPI INTERFACE:
@@ -52,18 +53,21 @@ That is:
 
 BUILDING OCAMLMPI:
 
-Edit the Makefile and set the following variables according to your
-MPI installation:
+If MPI is installed in the standard locations, just do
+
+       make all
+       make opt
+
+If MPI headers and libraries cannot be found, you may need to edit the
+Makefile and set the following variables according to your MPI
+installation:
 
 MPIINCDIR    directory containing the MPI include file <mpi.h>
 MPILIBDIR    directory containing the MPI library -lmpi
 MPICC        path to the 'mpicc' executable
 MPIRUN       path to the 'mpirun' executable
 
-The default settings look appropriate for Debian and Ubuntu.
-
-You may also adjust CFLAGS if necessary.  Then do "make all" and
-optionally "make opt" if you want to build the native code library.
+You may also adjust CFLAGS if necessary.
 
 For final installation: become super-user and do "make install".
 
@@ -78,10 +82,10 @@ There are two test programs included:
 USING OCAMLMPI:
 
 Bytecode:
-        ocamlfind ocamlc -linkpkg mpi <your files>
+        ocamlfind ocamlc -package mpi -linkpkg <your files>
 
 Native-code:
-        ocamlfind ocamlopt -linkpkg mpi <your files>
+        ocamlfind ocamlopt -package mpi -linkpkg <your files>
 
 
 LICENSING:

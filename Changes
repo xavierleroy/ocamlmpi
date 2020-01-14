@@ -1,3 +1,9 @@
+Version 1.04:
+- OCaml FFI: use caml_ names and CAML_NAME_SPACE
+- Constify caml_mpi_exn for compatibility with OCaml >= 4.09
+- Install mpi.cmx if built (#6) (Timothy Bourke)
+- Use MPI 2 error handlers (#5) (Timothy Bourke)
+
 Version 1.03:
 - Ensure compatibility with OCaml 4.06 and up by using bytes instead of strings for internal buffers.
   The API does not change.
