@@ -40,10 +40,10 @@ opt: $(OBJS:.cmo=.cmx)
 .ml.cmx:
 	$(OCAMLOPT) -c $<
 
-testmpi: test.ml mpi.cma libcamlmpi.a
+testmpi: test.ml byte libcamlmpi.a
 	ocamlc -g -o testmpi unix.cma mpi.cma test.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
 
-testmpinb: testnb.ml mpi.cma libcamlmpi.a
+testmpinb: testnb.ml byte libcamlmpi.a
 	ocamlc -cc $(CC) -g -o testmpinb unix.cma mpi.cma testnb.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
 
 clean::

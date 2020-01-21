@@ -16,9 +16,11 @@
 /* Group communication */
 
 #include <mpi.h>
+#include <limits.h>
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
 #include <caml/alloc.h>
+#include <caml/fail.h>
 #include "camlmpi.h"
 
 /* Barrier synchronization */
@@ -33,8 +35,15 @@ value caml_mpi_barrier(value comm)
 
 value caml_mpi_broadcast(value buffer, value root, value comm)
 {
-  MPI_Bcast(String_val(buffer), caml_string_length(buffer), MPI_BYTE,
-            Int_val(root), Comm_val(comm));
+  int count;
+  mlsize_t len;
+  len = caml_string_length(buffer);
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2GB.");
+  }
+  count = (int) len;
+  MPI_Bcast(String_val(buffer), count, MPI_BYTE, Int_val(root), Comm_val(comm));
+
   return Val_unit;
 }
 
@@ -61,9 +70,14 @@ value caml_mpi_broadcast_intarray(value data, value root, value comm)
 
 value caml_mpi_broadcast_floatarray(value data, value root, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
   double * d = caml_mpi_input_floatarray(data, len);
-  MPI_Bcast(d, len, MPI_DOUBLE, Int_val(root), Comm_val(comm));
+  MPI_Bcast(d, count, MPI_DOUBLE, Int_val(root), Comm_val(comm));
   caml_mpi_commit_floatarray(d, data, len);
   return Val_unit;
 }
@@ -96,10 +110,21 @@ value caml_mpi_scatter(value sendbuf, value sendlengths,
                        value root, value comm)
 {
   int * sendcounts, * displs;
+  int count;
+  mlsize_t len;
+  len = caml_string_length(sendbuf);
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2GB.");
+  }
+  len = caml_string_length(recvbuf);
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2GB.");
+  }
+  count = (int) len;
 
   caml_mpi_counts_displs(sendlengths, &sendcounts, &displs);
   MPI_Scatterv(String_val(sendbuf), sendcounts, displs, MPI_BYTE,
-               String_val(recvbuf), caml_string_length(recvbuf), MPI_BYTE,
+               String_val(recvbuf), count, MPI_BYTE,
                Int_val(root), Comm_val(comm));
   if (sendcounts != NULL) {
     caml_stat_free(sendcounts);
@@ -132,9 +157,14 @@ value caml_mpi_scatter_float(value data, value root, value comm)
 value caml_mpi_scatter_intarray(value source, value dest,
                                 value root, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(dest);
-  MPI_Scatter(&Field(source, 0), len, MPI_LONG,
-              &Field(dest, 0), len, MPI_LONG,
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
+  MPI_Scatter(&Field(source, 0), count, MPI_LONG,
+              &Field(dest, 0), count, MPI_LONG,
               Int_val(root), Comm_val(comm));
   return Val_unit;
 }
@@ -142,12 +172,17 @@ value caml_mpi_scatter_intarray(value source, value dest,
 value caml_mpi_scatter_floatarray(value source, value dest,
                                   value root, value comm)
 {
+  int count;
   mlsize_t srclen = Wosize_val(source) / Double_wosize;
   mlsize_t len = Wosize_val(dest) / Double_wosize;
   double * src = caml_mpi_input_floatarray_at_node(source, srclen, root, comm);
   double * dst = caml_mpi_output_floatarray(dest, len);
 
-  MPI_Scatter(src, len, MPI_DOUBLE, dst, len, MPI_DOUBLE,
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
+  MPI_Scatter(src, count, MPI_DOUBLE, dst, count, MPI_DOUBLE,
               Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(src);
   caml_mpi_commit_floatarray(dst, dest, len);
@@ -160,10 +195,20 @@ value caml_mpi_gather(value sendbuf,
                       value recvbuf, value recvlengths,
                       value root, value comm)
 {
+  int count;
   int * recvcounts, * displs;
 
   caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
-  MPI_Gatherv(String_val(sendbuf), caml_string_length(sendbuf), MPI_BYTE,
+  mlsize_t len = caml_string_length(recvbuf);
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2GB.");
+  }
+  len = caml_string_length(sendbuf);
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2GB.");
+  }
+  count = (int) len;
+  MPI_Gatherv(String_val(sendbuf), count, MPI_BYTE,
               String_val(recvbuf), recvcounts, displs, MPI_BYTE,
               Int_val(root), Comm_val(comm));
   if (recvcounts != NULL) {
@@ -184,21 +229,34 @@ value caml_mpi_gather_int(value data, value result, value root, value comm)
 value caml_mpi_gather_intarray(value data, value result,
                                value root, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data);
-  MPI_Gather(&Field(data, 0), len, MPI_LONG,
-             &Field(result, 0), len, MPI_LONG,
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
+  MPI_Gather(&Field(data, 0), count, MPI_LONG,
+             &Field(result, 0), count, MPI_LONG,
              Int_val(root), Comm_val(comm));
   return Val_unit;
 }
 
 value caml_mpi_gather_float(value data, value result, value root, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
   mlsize_t reslen = Wosize_val(result) / Double_wosize;
   double * d = caml_mpi_input_floatarray(data, len);
   double * res =
     caml_mpi_output_floatarray_at_node(result, reslen, root, comm);
-  MPI_Gather(d, len, MPI_DOUBLE, res, len, MPI_DOUBLE,
+  if ( reslen > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
+  MPI_Gather(d, count, MPI_DOUBLE, res, count, MPI_DOUBLE,
              Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, reslen);
@@ -211,10 +269,22 @@ value caml_mpi_allgather(value sendbuf,
                          value recvbuf, value recvlengths,
                          value comm)
 {
+  int count;
   int * recvcounts, * displs;
 
   caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
-  MPI_Allgatherv(String_val(sendbuf), caml_string_length(sendbuf), MPI_BYTE,
+
+  mlsize_t len;
+  len = caml_string_length(recvbuf);
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2GB.");
+  }
+  len = caml_string_length(sendbuf);
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2GB.");
+  }
+  count = (int) len;
+  MPI_Allgatherv(String_val(sendbuf), count, MPI_BYTE,
                  String_val(recvbuf), recvcounts, displs, MPI_BYTE,
                  Comm_val(comm));
   caml_stat_free(recvcounts);
@@ -232,21 +302,34 @@ value caml_mpi_allgather_int(value data, value result, value comm)
 
 value caml_mpi_allgather_intarray(value data, value result, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data);
-  MPI_Allgather(&Field(data, 0), len, MPI_LONG,
-                &Field(result, 0), len, MPI_LONG,
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
+  MPI_Allgather(&Field(data, 0), count, MPI_LONG,
+                &Field(result, 0), count, MPI_LONG,
                 Comm_val(comm));
   return Val_unit;
 }
 
 value caml_mpi_allgather_float(value data, value result, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
   mlsize_t reslen = Wosize_val(result) / Double_wosize;
   double * d = caml_mpi_input_floatarray(data, len);
   double * res = caml_mpi_output_floatarray(result, reslen);
 
-  MPI_Allgather(d, len, MPI_DOUBLE, res, len, MPI_DOUBLE,
+  if ( reslen > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
+  MPI_Allgather(d, count, MPI_DOUBLE, res, count, MPI_DOUBLE,
                 Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, reslen);
@@ -272,12 +355,17 @@ value caml_mpi_reduce_int(value data, value op, value root, value comm)
 value caml_mpi_reduce_intarray(value data, value result, value op,
                                value root, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data);
   int myrank;
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
-  MPI_Reduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
+  MPI_Reduce(&Field(data, 0), &Field(result, 0), count, MPI_LONG,
              reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
@@ -299,11 +387,16 @@ value caml_mpi_reduce_float(value data, value op, value root, value comm)
 value caml_mpi_reduce_floatarray(value data, value result, value op,
                             value root, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
   double * d = caml_mpi_input_floatarray(data, len);
   double * res = caml_mpi_output_floatarray(result, len);
 
-  MPI_Reduce(d, res, len, MPI_DOUBLE,
+  MPI_Reduce(d, res, count, MPI_DOUBLE,
              reduce_floatop[Int_val(op)], Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
@@ -324,11 +417,16 @@ value caml_mpi_allreduce_int(value data, value op, value comm)
 value caml_mpi_allreduce_intarray(value data, value result, value op,
                                   value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data);
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
-  MPI_Allreduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
+  MPI_Allreduce(&Field(data, 0), &Field(result, 0), count, MPI_LONG,
                 reduce_intop[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
@@ -349,11 +447,16 @@ value caml_mpi_allreduce_float(value data, value op, value comm)
 value caml_mpi_allreduce_floatarray(value data, value result, value op,
                                     value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
   double * d = caml_mpi_input_floatarray(data, len);
   double * res = caml_mpi_output_floatarray(result, len);
 
-  MPI_Allreduce(d, res, len, MPI_DOUBLE,
+  MPI_Allreduce(d, res, count, MPI_DOUBLE,
                 reduce_floatop[Int_val(op)], Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
@@ -373,12 +476,17 @@ value caml_mpi_scan_int(value data, value op, value comm)
 
 value caml_mpi_scan_intarray(value data, value result, value op, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data);
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
 
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the scan */
-  MPI_Scan(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
+  MPI_Scan(&Field(data, 0), &Field(result, 0), count, MPI_LONG,
            reduce_intop[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
@@ -398,11 +506,16 @@ value caml_mpi_scan_float(value data, value op, value comm)
 
 value caml_mpi_scan_floatarray(value data, value result, value op, value comm)
 {
+  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
+  if ( len > INT_MAX ) {
+    caml_invalid_argument("Size of data exceeds 2^31 elements.");
+  }
+  count = (int) len;
   double * d = caml_mpi_input_floatarray(data, len);
   double * res = caml_mpi_output_floatarray(result, len);
 
-  MPI_Scan(d, res, len, MPI_DOUBLE,
+  MPI_Scan(d, res, count, MPI_DOUBLE,
            reduce_floatop[Int_val(op)], Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
