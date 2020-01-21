@@ -7,6 +7,8 @@ MPILIBDIR=/usr/lib
 MPICC=mpicc
 MPIRUN=mpirun
 
+CC=$(MPICC)
+
 CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O2 -g -Wall -DCAML_NAME_SPACE
 
 COBJS=init.o comm.o msgs.o collcomm.o groups.o utils.o
