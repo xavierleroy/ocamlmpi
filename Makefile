@@ -11,7 +11,7 @@ CC=$(MPICC)
 
 CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O2 -g -Wall -DCAML_NAME_SPACE
 
-COBJS=init.o comm.o msgs.o collcomm.o groups.o utils.o
+COBJS=init.o comm.o msgs.o collcomm.o groups.o utils.o 
 OBJS=mpi.cmo
 
 all: libcamlmpi.a byte
@@ -25,7 +25,7 @@ uninstall:
 
 libcamlmpi.a: $(COBJS)
 	rm -f $@
-	ar rc $@ $(COBJS)
+	ar rc $@ $(COBJS) 
 
 byte: $(OBJS)
 	$(OCAMLC) -a -o mpi.cma -custom $(OBJS) -cclib -lcamlmpi -ccopt -L$(MPILIBDIR) -cclib -lmpi

@@ -16,8 +16,10 @@
 /* Utility functions on arrays */
 
 #include <mpi.h>
+#include <limits.h>
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
+#include <caml/fail.h>
 #include "camlmpi.h"
 
 void caml_mpi_decode_intarray(value data, mlsize_t len)
@@ -30,6 +32,14 @@ void caml_mpi_encode_intarray(value data, mlsize_t len)
 {
   mlsize_t i;
   for (i = 0; i < len; i++) Field(data, i) = Val_long(Field(data, i));
+}
+
+int caml_mpi_int_of_mlsize_t(mlsize_t value) 
+{
+  if ( value > (mlsize_t) INT_MAX ) {
+    caml_invalid_argument("Size exceeds 2^31.");
+  }
+  return (int) value;
 }
 
 #ifdef ARCH_ALIGN_DOUBLE
