@@ -23,6 +23,14 @@
 #include <caml/fail.h>
 #include "camlmpi.h"
 
+int int_of_mlsize_t(mlsize_t value) 
+{
+  if ( value > INT_MAX ) {
+    caml_invalid_argument("Size exceeds 2^31.");
+  }
+  return (int) value;
+}
+
 /* Barrier synchronization */
 
 value caml_mpi_barrier(value comm)
@@ -35,13 +43,9 @@ value caml_mpi_barrier(value comm)
 
 value caml_mpi_broadcast(value buffer, value root, value comm)
 {
-  int count;
   mlsize_t len;
   len = caml_string_length(buffer);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2GB.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
   MPI_Bcast(String_val(buffer), count, MPI_BYTE, Int_val(root), Comm_val(comm));
 
   return Val_unit;
@@ -70,12 +74,8 @@ value caml_mpi_broadcast_intarray(value data, value root, value comm)
 
 value caml_mpi_broadcast_floatarray(value data, value root, value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
   double * d = caml_mpi_input_floatarray(data, len);
   MPI_Bcast(d, count, MPI_DOUBLE, Int_val(root), Comm_val(comm));
   caml_mpi_commit_floatarray(d, data, len);
@@ -109,18 +109,14 @@ value caml_mpi_scatter(value sendbuf, value sendlengths,
                        value recvbuf,
                        value root, value comm)
 {
-  int * sendcounts, * displs;
   int count;
+  int * sendcounts, * displs;
   mlsize_t len;
   len = caml_string_length(sendbuf);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2GB.");
-  }
+  count = int_of_mlsize_t(len); /* For overflow check */
+
   len = caml_string_length(recvbuf);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2GB.");
-  }
-  count = (int) len;
+  count = int_of_mlsize_t(len);
 
   caml_mpi_counts_displs(sendlengths, &sendcounts, &displs);
   MPI_Scatterv(String_val(sendbuf), sendcounts, displs, MPI_BYTE,
@@ -157,12 +153,8 @@ value caml_mpi_scatter_float(value data, value root, value comm)
 value caml_mpi_scatter_intarray(value source, value dest,
                                 value root, value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(dest);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
   MPI_Scatter(&Field(source, 0), count, MPI_LONG,
               &Field(dest, 0), count, MPI_LONG,
               Int_val(root), Comm_val(comm));
@@ -172,16 +164,11 @@ value caml_mpi_scatter_intarray(value source, value dest,
 value caml_mpi_scatter_floatarray(value source, value dest,
                                   value root, value comm)
 {
-  int count;
   mlsize_t srclen = Wosize_val(source) / Double_wosize;
   mlsize_t len = Wosize_val(dest) / Double_wosize;
+  int count = int_of_mlsize_t(len);
   double * src = caml_mpi_input_floatarray_at_node(source, srclen, root, comm);
   double * dst = caml_mpi_output_floatarray(dest, len);
-
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
   MPI_Scatter(src, count, MPI_DOUBLE, dst, count, MPI_DOUBLE,
               Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(src);
@@ -195,19 +182,14 @@ value caml_mpi_gather(value sendbuf,
                       value recvbuf, value recvlengths,
                       value root, value comm)
 {
-  int count;
   int * recvcounts, * displs;
+  int count;
 
   caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
   mlsize_t len = caml_string_length(recvbuf);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2GB.");
-  }
+  count = int_of_mlsize_t(len);
   len = caml_string_length(sendbuf);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2GB.");
-  }
-  count = (int) len;
+  count = int_of_mlsize_t(len); /* For overflow check */
   MPI_Gatherv(String_val(sendbuf), count, MPI_BYTE,
               String_val(recvbuf), recvcounts, displs, MPI_BYTE,
               Int_val(root), Comm_val(comm));
@@ -229,12 +211,8 @@ value caml_mpi_gather_int(value data, value result, value root, value comm)
 value caml_mpi_gather_intarray(value data, value result,
                                value root, value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(data);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
   MPI_Gather(&Field(data, 0), count, MPI_LONG,
              &Field(result, 0), count, MPI_LONG,
              Int_val(root), Comm_val(comm));
@@ -247,15 +225,9 @@ value caml_mpi_gather_float(value data, value result, value root, value comm)
   mlsize_t len = Wosize_val(data) / Double_wosize;
   mlsize_t reslen = Wosize_val(result) / Double_wosize;
   double * d = caml_mpi_input_floatarray(data, len);
-  double * res =
-    caml_mpi_output_floatarray_at_node(result, reslen, root, comm);
-  if ( reslen > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  double * res = caml_mpi_output_floatarray_at_node(result, reslen, root, comm);
+  count = int_of_mlsize_t(reslen); /* For overflow check */
+  count = int_of_mlsize_t(len);
   MPI_Gather(d, count, MPI_DOUBLE, res, count, MPI_DOUBLE,
              Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(d);
@@ -270,20 +242,15 @@ value caml_mpi_allgather(value sendbuf,
                          value comm)
 {
   int count;
+  mlsize_t len;
   int * recvcounts, * displs;
 
   caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
 
-  mlsize_t len;
   len = caml_string_length(recvbuf);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2GB.");
-  }
+  count = int_of_mlsize_t(len); /* Overflow check */
   len = caml_string_length(sendbuf);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2GB.");
-  }
-  count = (int) len;
+  count = int_of_mlsize_t(len);
   MPI_Allgatherv(String_val(sendbuf), count, MPI_BYTE,
                  String_val(recvbuf), recvcounts, displs, MPI_BYTE,
                  Comm_val(comm));
@@ -302,12 +269,8 @@ value caml_mpi_allgather_int(value data, value result, value comm)
 
 value caml_mpi_allgather_intarray(value data, value result, value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(data);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
   MPI_Allgather(&Field(data, 0), count, MPI_LONG,
                 &Field(result, 0), count, MPI_LONG,
                 Comm_val(comm));
@@ -321,14 +284,8 @@ value caml_mpi_allgather_float(value data, value result, value comm)
   mlsize_t reslen = Wosize_val(result) / Double_wosize;
   double * d = caml_mpi_input_floatarray(data, len);
   double * res = caml_mpi_output_floatarray(result, reslen);
-
-  if ( reslen > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  count = int_of_mlsize_t(reslen); /* For Overflow check */
+  count = int_of_mlsize_t(len);
   MPI_Allgather(d, count, MPI_DOUBLE, res, count, MPI_DOUBLE,
                 Comm_val(comm));
   caml_mpi_free_floatarray(d);
@@ -355,13 +312,9 @@ value caml_mpi_reduce_int(value data, value op, value root, value comm)
 value caml_mpi_reduce_intarray(value data, value result, value op,
                                value root, value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(data);
+  int count = int_of_mlsize_t(len);
   int myrank;
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
@@ -387,12 +340,8 @@ value caml_mpi_reduce_float(value data, value op, value root, value comm)
 value caml_mpi_reduce_floatarray(value data, value result, value op,
                             value root, value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
   double * d = caml_mpi_input_floatarray(data, len);
   double * res = caml_mpi_output_floatarray(result, len);
 
@@ -417,12 +366,8 @@ value caml_mpi_allreduce_int(value data, value op, value comm)
 value caml_mpi_allreduce_intarray(value data, value result, value op,
                                   value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(data);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
@@ -447,12 +392,8 @@ value caml_mpi_allreduce_float(value data, value op, value comm)
 value caml_mpi_allreduce_floatarray(value data, value result, value op,
                                     value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
   double * d = caml_mpi_input_floatarray(data, len);
   double * res = caml_mpi_output_floatarray(result, len);
 
@@ -476,12 +417,8 @@ value caml_mpi_scan_int(value data, value op, value comm)
 
 value caml_mpi_scan_intarray(value data, value result, value op, value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(data);
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
 
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
@@ -506,12 +443,8 @@ value caml_mpi_scan_float(value data, value op, value comm)
 
 value caml_mpi_scan_floatarray(value data, value result, value op, value comm)
 {
-  int count;
   mlsize_t len = Wosize_val(data) / Double_wosize;
-  if ( len > INT_MAX ) {
-    caml_invalid_argument("Size of data exceeds 2^31 elements.");
-  }
-  count = (int) len;
+  int count = int_of_mlsize_t(len);
   double * d = caml_mpi_input_floatarray(data, len);
   double * res = caml_mpi_output_floatarray(result, len);
 
