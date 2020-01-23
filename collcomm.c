@@ -36,7 +36,7 @@ value caml_mpi_broadcast(value buffer, value root, value comm)
   mlsize_t len;
   len = caml_string_length(buffer);
   int count = caml_mpi_int_of_mlsize_t(len);
-  MPI_Bcast(String_val(buffer), count, MPI_BYTE, Int_val(root), Comm_val(comm));
+  MPI_Bcast(Bytes_val(buffer), count, MPI_BYTE, Int_val(root), Comm_val(comm));
 
   return Val_unit;
 }
@@ -109,8 +109,8 @@ value caml_mpi_scatter(value sendbuf, value sendlengths,
   count = caml_mpi_int_of_mlsize_t(len);
 
   caml_mpi_counts_displs(sendlengths, &sendcounts, &displs);
-  MPI_Scatterv(String_val(sendbuf), sendcounts, displs, MPI_BYTE,
-               String_val(recvbuf), count, MPI_BYTE,
+  MPI_Scatterv(Bytes_val(sendbuf), sendcounts, displs, MPI_BYTE,
+               Bytes_val(recvbuf), count, MPI_BYTE,
                Int_val(root), Comm_val(comm));
   if (sendcounts != NULL) {
     caml_stat_free(sendcounts);
@@ -180,8 +180,8 @@ value caml_mpi_gather(value sendbuf,
   count = caml_mpi_int_of_mlsize_t(len);
   len = caml_string_length(sendbuf);
   count = caml_mpi_int_of_mlsize_t(len); /* For overflow check */
-  MPI_Gatherv(String_val(sendbuf), count, MPI_BYTE,
-              String_val(recvbuf), recvcounts, displs, MPI_BYTE,
+  MPI_Gatherv(Bytes_val(sendbuf), count, MPI_BYTE,
+              Bytes_val(recvbuf), recvcounts, displs, MPI_BYTE,
               Int_val(root), Comm_val(comm));
   if (recvcounts != NULL) {
     caml_stat_free(recvcounts);
@@ -241,8 +241,8 @@ value caml_mpi_allgather(value sendbuf,
   count = caml_mpi_int_of_mlsize_t(len); /* Overflow check */
   len = caml_string_length(sendbuf);
   count = caml_mpi_int_of_mlsize_t(len);
-  MPI_Allgatherv(String_val(sendbuf), count, MPI_BYTE,
-                 String_val(recvbuf), recvcounts, displs, MPI_BYTE,
+  MPI_Allgatherv(Bytes_val(sendbuf), count, MPI_BYTE,
+                 Bytes_val(recvbuf), recvcounts, displs, MPI_BYTE,
                  Comm_val(comm));
   caml_stat_free(recvcounts);
   caml_stat_free(displs);
