@@ -22,7 +22,6 @@
 #include <caml/fail.h>
 #include <caml/callback.h>
 #include "camlmpi.h"
-#include <stdio.h>
 
 /* Error handling */
 
@@ -32,15 +31,16 @@ static void caml_mpi_error_handler(MPI_Comm * comm, int * errcode, ...)
 {
   char errmsg[MPI_MAX_ERROR_STRING + 1];
   int resultlen;
+  value msg;
 
   MPI_Error_string(*errcode, errmsg, &resultlen);
+  msg = caml_copy_string(errmsg);
   if (caml_mpi_exn == NULL) {
     caml_mpi_exn = caml_named_value("Mpi.Error");
     if (caml_mpi_exn == NULL)
       caml_invalid_argument("Exception MPI.Error not initialized");
   }
-  fprintf(stderr,"%s\n",errmsg);
-  caml_raise_with_string(*caml_mpi_exn, errmsg);
+  caml_raise_with_arg(*caml_mpi_exn, msg);
 }
 
 /* Initialization and finalization */
