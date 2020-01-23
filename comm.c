@@ -23,7 +23,9 @@
 
 static void caml_mpi_finalize_comm(value v)
 {
-  MPI_Comm_free(&Comm_val(v));
+  if (Comm_val(v) != MPI_COMM_NULL) {
+    MPI_Comm_free(&Comm_val(v));
+  }
 }
 
 value caml_mpi_alloc_comm(MPI_Comm c)
