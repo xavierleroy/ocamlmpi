@@ -44,6 +44,10 @@ external comm_compare:
     communicator -> communicator -> bool
     = "caml_mpi_comm_compare"
 
+external get_comm_null : unit -> communicator = "caml_mpi_get_comm_null"
+
+let comm_none = get_comm_null()
+
 type color = int
 external comm_split:
     communicator -> color -> int -> communicator

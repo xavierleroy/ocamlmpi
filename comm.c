@@ -75,6 +75,11 @@ value caml_mpi_get_undefined(value unit)
   return Val_int(MPI_UNDEFINED);
 }
 
+value caml_mpi_get_comm_null(value unit)
+{
+  return Val_int(MPI_COMM_NULL);
+}
+
 value caml_mpi_cart_create(value comm, value vdims, value vperiods,
                            value reorder)
 {

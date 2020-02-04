@@ -325,6 +325,12 @@ val comm_compare: communicator -> communicator -> bool
         (* Compare two communicators and return [true] if they are the same,
            [false] otherwise. *)
         
+val comm_none: communicator
+        (* The communicator created by [Mpi.comm_group], can be a
+           null communicator, represented by the value [MPI_COMM_NULL]
+           in the C API. This particular value is named here [comm_none].
+           *)
+
 type color = int
 val comm_split: communicator -> color -> int -> communicator
         (* [Mpi.comm_split comm col key] splits the communicator into
