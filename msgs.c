@@ -46,11 +46,13 @@ value caml_mpi_send(value data, value flags,
   MPI_Comm comm = Comm_val(vcomm);
   char * buffer;
   long len;
+  int count;
 
   caml_output_value_to_malloc(data, flags, &buffer, &len);
+  count = caml_mpi_int_of_mlsize_t(len);
   /* This also allocates the buffer */
   caml_enter_blocking_section();
-  MPI_Send(buffer, len, MPI_BYTE, Int_val(dest), Int_val(tag), comm);
+  MPI_Send(buffer, count, MPI_BYTE, Int_val(dest), Int_val(tag), comm);
   caml_leave_blocking_section();
   caml_stat_free(buffer);
   CAMLreturn(Val_unit);
@@ -66,7 +68,10 @@ value caml_mpi_send_int(value data, value dest, value tag, value comm)
 
 value caml_mpi_send_intarray(value data, value dest, value tag, value comm)
 {
-  MPI_Send(&Field(data, 0), Wosize_val(data), MPI_LONG,
+  mlsize_t len = Wosize_val(data);
+  int count = caml_mpi_int_of_mlsize_t(len);
+  
+  MPI_Send(&Field(data, 0), count, MPI_LONG,
            Int_val(dest), Int_val(tag), Comm_val(comm));
   return Val_unit;
 }
@@ -74,9 +79,10 @@ value caml_mpi_send_intarray(value data, value dest, value tag, value comm)
 value caml_mpi_send_float(value data, value dest, value tag, value comm)
 {
   mlsize_t len = Wosize_val(data) / Double_wosize;
+  int count = caml_mpi_int_of_mlsize_t(len);
   double * d = caml_mpi_input_floatarray(data, len);
 
-  MPI_Send(d, len, MPI_DOUBLE, Int_val(dest), Int_val(tag), Comm_val(comm));
+  MPI_Send(d, count, MPI_DOUBLE, Int_val(dest), Int_val(tag), Comm_val(comm));
   caml_mpi_free_floatarray(d);
   return Val_unit;
 }
@@ -128,13 +134,14 @@ value caml_mpi_receive(value vlen, value source, value tag, value vcomm)
   CAMLparam1(vcomm);            /* prevent deallocation of communicator */
   MPI_Comm comm = Comm_val(vcomm);
   mlsize_t len = Long_val(vlen);
+  int count = caml_mpi_int_of_mlsize_t(len);
   char * buffer;
   MPI_Status status;
   value res;
 
   buffer = caml_stat_alloc(len);
   caml_enter_blocking_section();
-  MPI_Recv(buffer, len, MPI_BYTE,
+  MPI_Recv(buffer, count, MPI_BYTE,
            Int_val(source), Int_val(tag), comm, &status);
   caml_leave_blocking_section();
   res = caml_input_value_from_malloc(buffer, 0);
@@ -156,9 +163,12 @@ value caml_mpi_receive_int(value source, value tag, value comm)
 
 value caml_mpi_receive_intarray(value data, value source, value tag, value comm)
 {
+  mlsize_t len = Wosize_val(data);
+  int count = caml_mpi_int_of_mlsize_t(len);
+
   MPI_Status status;
 
-  MPI_Recv(&Field(data, 0), Wosize_val(data), MPI_LONG,
+  MPI_Recv(&Field(data, 0), count, MPI_LONG,
            Int_val(source), Int_val(tag), Comm_val(comm), &status);
   return Val_unit;
 }
@@ -175,11 +185,13 @@ value caml_mpi_receive_float(value source, value tag, value comm)
 
 value caml_mpi_receive_floatarray(value data, value source, value tag, value comm)
 {
-  MPI_Status status;
   mlsize_t len = Wosize_val(data) / Double_wosize;
+  int count = caml_mpi_int_of_mlsize_t(len);
+
+  MPI_Status status;
   double * d = caml_mpi_output_floatarray(data, len);
 
-  MPI_Recv(d, len, MPI_DOUBLE,
+  MPI_Recv(d, count, MPI_DOUBLE,
            Int_val(source), Int_val(tag), Comm_val(comm), &status);
   caml_mpi_commit_floatarray(d, data, len);
   return Val_unit;
@@ -247,11 +259,13 @@ value caml_mpi_isend(value data, value flags,
   MPI_Comm comm = Comm_val(vcomm);
   char *buffer;
   long len;
+  int count;
   req = caml_mpi_alloc_request();
   
   caml_output_value_to_malloc(data, flags, &buffer, &len); //encode&alloc buffer
+  count = caml_mpi_int_of_mlsize_t(len);
   caml_enter_blocking_section();
-  MPI_Isend(buffer, len, MPI_BYTE, Int_val(dest), Int_val(tag), comm, 
+  MPI_Isend(buffer, count, MPI_BYTE, Int_val(dest), Int_val(tag), comm, 
             &Request_req_val(req));
   caml_leave_blocking_section();
   Buffer_req_val(req) = buffer; // store send buffer address 
@@ -265,6 +279,7 @@ value caml_mpi_isend_varlength(value data, value flags,
   CAMLlocal3(result,lenreq,datareq);
   char *buffer;
   long len;
+  int count;
   long *lenbuf;
  
   MPI_Comm comm = Comm_val(vcomm);
@@ -279,9 +294,12 @@ value caml_mpi_isend_varlength(value data, value flags,
   Buffer_req_val(lenreq) = (char*)lenbuf;
   Buffer_req_val(datareq) = buffer; // store send buffer address
   caml_enter_blocking_section();
-  MPI_Isend(Buffer_req_val(lenreq), 1, MPI_INT,
+  MPI_Isend(Buffer_req_val(lenreq), 1, MPI_LONG,
        	    Int_val(dest), Int_val(tag), comm, &Request_req_val(lenreq));
-  MPI_Isend(buffer, len, MPI_BYTE, Int_val(dest), Int_val(tag), comm, 
+  caml_leave_blocking_section(); 
+  count = caml_mpi_int_of_mlsize_t(len);
+  caml_enter_blocking_section();
+  MPI_Isend(buffer, count, MPI_BYTE, Int_val(dest), Int_val(tag), comm, 
             &Request_req_val(datareq));
   caml_leave_blocking_section(); 
   
@@ -295,12 +313,13 @@ value caml_mpi_ireceive(value vlen, value src, value tag, value vcomm)
   CAMLlocal1(datareq);
   char *buffer;
   long len = Int_val(vlen);
+  int count = caml_mpi_int_of_mlsize_t(len);
 
   MPI_Comm comm = Comm_val(vcomm);
   datareq = caml_mpi_alloc_request();
   Buffer_req_val(datareq) = buffer = malloc(len);
   caml_enter_blocking_section();
-  MPI_Irecv(buffer, len, MPI_BYTE, Int_val(src), Int_val(tag), comm, 
+  MPI_Irecv(buffer, count, MPI_BYTE, Int_val(src), Int_val(tag), comm, 
             &Request_req_val(datareq));
   caml_leave_blocking_section(); 
 
@@ -312,17 +331,19 @@ value caml_mpi_ireceive_varlength(value src, value tag, value vcomm)
   CAMLparam3(src,tag,vcomm);
   CAMLlocal1(datareq);
   char *buffer;
-  int len;
+  long len;
+  int count;
   MPI_Status status;
 
   MPI_Comm comm = Comm_val(vcomm);
   datareq = caml_mpi_alloc_request();
   caml_enter_blocking_section();
-  MPI_Recv(&len, 1, MPI_INT, Int_val(src), Int_val(tag), comm, &status);
+  MPI_Recv(&len, 1, MPI_LONG, Int_val(src), Int_val(tag), comm, &status);
   caml_leave_blocking_section(); 
   Buffer_req_val(datareq) = buffer = malloc(len);
+  count = caml_mpi_int_of_mlsize_t(len);
   caml_enter_blocking_section();
-  MPI_Irecv(buffer, len, MPI_BYTE, Int_val(src), Int_val(tag), comm, 
+  MPI_Irecv(buffer, count, MPI_BYTE, Int_val(src), Int_val(tag), comm, 
             &Request_req_val(datareq));
   caml_leave_blocking_section(); 
  

@@ -23,14 +23,25 @@
 
 static void caml_mpi_finalize_comm(value v)
 {
-  MPI_Comm_free(&Comm_val(v));
+  if (Comm_val(v) != MPI_COMM_NULL) {
+    MPI_Comm_free(&Comm_val(v));
+  }
 }
 
 value caml_mpi_alloc_comm(MPI_Comm c)
 {
-  value res =
+  value res;
+
+  if (c == MPI_COMM_NULL) {
+    res = 
     caml_alloc_final(1 + (sizeof(MPI_Comm) + sizeof(value) - 1) / sizeof(value),
                      caml_mpi_finalize_comm, 1, 100);
+
+  } else {
+    res =
+    caml_alloc_final(1 + (sizeof(MPI_Comm) + sizeof(value) - 1) / sizeof(value),
+                     caml_mpi_finalize_comm, 1, 100);
+  }
   Comm_val(res) = c;
   return res;
 }
@@ -38,6 +49,16 @@ value caml_mpi_alloc_comm(MPI_Comm c)
 value caml_mpi_get_comm_world(value unit)
 {
   return caml_mpi_alloc_comm(MPI_COMM_WORLD);
+}
+
+value caml_mpi_get_comm_self(value unit)
+{
+  return caml_mpi_alloc_comm(MPI_COMM_SELF);
+}
+
+value caml_mpi_get_comm_null(value unit)
+{
+  return caml_mpi_alloc_comm(MPI_COMM_NULL);
 }
 
 value caml_mpi_comm_size(value comm)
@@ -52,6 +73,13 @@ value caml_mpi_comm_rank(value comm)
   int rank;
   MPI_Comm_rank(Comm_val(comm), &rank);
   return Val_int(rank);
+}
+
+value caml_mpi_comm_is_null(value comm)
+{
+  int res;
+  res = Comm_val(comm) == MPI_COMM_NULL ? 1 : 0;
+  return Val_bool(res);
 }
 
 value caml_mpi_comm_compare(value comm1, value comm2)

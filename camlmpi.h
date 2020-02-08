@@ -25,6 +25,8 @@ extern value caml_mpi_alloc_comm(MPI_Comm c);
 extern void caml_mpi_decode_intarray(value array, mlsize_t len);
 extern void caml_mpi_encode_intarray(value array, mlsize_t len);
 
+int caml_mpi_int_of_mlsize_t(mlsize_t value) ;
+
 #ifdef ARCH_ALIGN_DOUBLE
 
 extern double * caml_mpi_input_floatarray(value data, mlsize_t len);

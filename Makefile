@@ -7,9 +7,11 @@ MPILIBDIR=/usr/lib
 MPICC=mpicc
 MPIRUN=mpirun
 
+CC=$(MPICC)
+
 CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O2 -g -Wall -DCAML_NAME_SPACE
 
-COBJS=init.o comm.o msgs.o collcomm.o groups.o utils.o
+COBJS=init.o comm.o msgs.o collcomm.o groups.o utils.o 
 OBJS=mpi.cmo
 
 all: libcamlmpi.a byte
@@ -23,7 +25,7 @@ uninstall:
 
 libcamlmpi.a: $(COBJS)
 	rm -f $@
-	ar rc $@ $(COBJS)
+	ar rc $@ $(COBJS) 
 
 byte: $(OBJS)
 	$(OCAMLC) -a -o mpi.cma -custom $(OBJS) -cclib -lcamlmpi -ccopt -L$(MPILIBDIR) -cclib -lmpi
@@ -40,10 +42,10 @@ opt: $(OBJS:.cmo=.cmx)
 .ml.cmx:
 	$(OCAMLOPT) -c $<
 
-testmpi: test.ml mpi.cma libcamlmpi.a
+testmpi: test.ml byte libcamlmpi.a
 	ocamlc -g -o testmpi unix.cma mpi.cma test.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
 
-testmpinb: testnb.ml mpi.cma libcamlmpi.a
+testmpinb: testnb.ml byte libcamlmpi.a
 	ocamlc -cc $(CC) -g -o testmpinb unix.cma mpi.cma testnb.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
 
 clean::

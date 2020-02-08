@@ -34,15 +34,22 @@ type communicator
 type rank = int
 
 external get_comm_world : unit -> communicator = "caml_mpi_get_comm_world"
+external get_comm_null  : unit -> communicator = "caml_mpi_get_comm_null"
+external get_comm_self  : unit -> communicator = "caml_mpi_get_comm_self"
 
-let comm_world = get_comm_world()
+let comm_world = get_comm_world ()
+let comm_null  = get_comm_null  ()
+let comm_self  = get_comm_self  ()
 
-external comm_size : communicator -> int = "caml_mpi_comm_size"
-external comm_rank : communicator -> int = "caml_mpi_comm_rank"
+external comm_is_null : communicator -> bool = "caml_mpi_comm_is_null"
+external comm_size    : communicator -> int  = "caml_mpi_comm_size"
+external comm_rank    : communicator -> int  = "caml_mpi_comm_rank"
 
 external comm_compare:
     communicator -> communicator -> bool
     = "caml_mpi_comm_compare"
+
+external get_comm_null : unit -> communicator = "caml_mpi_get_comm_null"
 
 type color = int
 external comm_split:
