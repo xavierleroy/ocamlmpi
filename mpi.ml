@@ -18,6 +18,25 @@
 
 exception Error of string
 
+type ('a, 'b) ba1 = ('a, 'b, Bigarray.c_layout) Bigarray.Array1.t
+
+let ba_kind_is_float (type a b) (k : (a, b) Bigarray.kind) =
+  let open Bigarray in
+  match k with
+  | Float32 -> true
+  | Float64 -> true
+  | Complex32 -> true
+  | Complex64 -> true
+  | Int8_signed -> false
+  | Int8_unsigned -> false
+  | Int16_signed -> false
+  | Int16_unsigned -> false
+  | Int32 -> false
+  | Int64 -> false
+  | Int -> false
+  | Nativeint -> false
+  | Char -> false
+
 let mpi_error s = raise(Error s)
 
 external init : string array -> unit = "caml_mpi_init"
@@ -137,6 +156,13 @@ external receive_float_array:
     float array -> rank -> tag -> communicator -> unit
     = "caml_mpi_receive_floatarray"
 
+external send_bigarray:
+    ('a, 'b) ba1 -> rank -> tag -> communicator -> unit
+    = "caml_mpi_send_bigarray"
+external receive_bigarray:
+    ('a, 'b) ba1 -> rank -> tag -> communicator -> unit
+    = "caml_mpi_receive_bigarray"
+
 (* Non-blocking communication *)
 
 type request
@@ -220,6 +246,9 @@ external broadcast_int_array:
 external broadcast_float_array:
     float array -> rank -> communicator -> unit
     = "caml_mpi_broadcast_floatarray"
+external broadcast_bigarray:
+    ('a, 'b) ba1 -> rank -> communicator -> unit
+    = "caml_mpi_broadcast_bigarray"
 
 (* Scatter *)
 
@@ -272,6 +301,16 @@ let scatter data root comm =
 external scatter_float:
     float array -> rank -> communicator -> float
     = "caml_mpi_scatter_float"
+
+external scatter_from_bigarray:
+    ('a, 'b) ba1 -> rank -> communicator -> 'a
+    = "caml_mpi_scatter_from_bigarray"
+let scatter_from_bigarray src rank comm =
+  if rank = comm_rank comm
+  && Bigarray.Array1.dim src <> comm_size comm
+  then mpi_error "Mpi.scatter_from_bigarray: array size mismatch"
+  else scatter_from_bigarray src rank comm
+
 external scatter_int_array:
     int array -> int array -> rank -> communicator -> unit
     = "caml_mpi_scatter_intarray"
@@ -289,6 +328,15 @@ let scatter_float_array src dst rank comm =
   && Array.length src <> Array.length dst * comm_size comm
   then mpi_error "Mpi.scatter_float_array: array size mismatch"
   else scatter_float_array src dst rank comm
+
+external scatter_bigarray:
+    ('a, 'b) ba1 -> ('a, 'b) ba1 -> rank -> communicator -> unit
+    = "caml_mpi_scatter_bigarray"
+let scatter_bigarray src dst rank comm =
+  if rank = comm_rank comm
+  && Bigarray.Array1.dim src <> Bigarray.Array1.dim dst * comm_size comm
+  then mpi_error "Mpi.scatter_bigarray: array size mismatch"
+  else scatter_bigarray src dst rank comm
 
 (* Gather *)
 
@@ -345,6 +393,15 @@ let gather_float src dst rank comm =
   then mpi_error "Mpi.gather_float: array size mismatch"
   else gather_float src dst rank comm
 
+external gather_to_bigarray:
+    'a -> ('a, 'b) ba1 -> rank -> communicator -> unit
+    = "caml_mpi_gather_to_bigarray"
+let gather_to_bigarray src dst rank comm =
+  if rank = comm_rank comm
+  && Bigarray.Array1.dim dst <> comm_size comm
+  then mpi_error "Mpi.gather_to_bigarray: array size mismatch"
+  else gather_to_bigarray src dst rank comm
+
 external gather_int_array:
     int array -> int array -> rank -> communicator -> unit
     = "caml_mpi_gather_intarray"
@@ -362,6 +419,15 @@ let gather_float_array src dst rank comm =
   && Array.length dst <> Array.length src * comm_size comm
   then mpi_error "Mpi.gather_float_array: array size mismatch"
   else gather_float_array src dst rank comm
+
+external gather_bigarray:
+    ('a, 'b) ba1 -> ('a, 'b) ba1 -> rank -> communicator -> unit
+    = "caml_mpi_gather_bigarray"
+let gather_bigarray src dst rank comm =
+  if rank = comm_rank comm
+  && Bigarray.Array1.dim dst <> Bigarray.Array1.dim src * comm_size comm
+  then mpi_error "Mpi.gather_bigarray: array size mismatch"
+  else gather_bigarray src dst rank comm
 
 (* Gather to all *)
 
@@ -406,6 +472,14 @@ let allgather_float src dst comm =
   then mpi_error "MPI.allgather_float: array size mismatch"
   else allgather_float src dst comm
 
+external allgather_to_bigarray:
+    'a -> ('a, 'b) ba1 -> communicator -> unit
+    = "caml_mpi_allgather_to_bigarray"
+let allgather_to_bigarray src dst comm =
+  if Bigarray.Array1.dim dst <> comm_size comm
+  then mpi_error "MPI.allgather_to_bigarray: array size mismatch"
+  else allgather_to_bigarray src dst comm
+
 external allgather_int_array:
     int array -> int array -> communicator -> unit
     = "caml_mpi_allgather_intarray"
@@ -422,12 +496,25 @@ let allgather_float_array src dst comm =
   then mpi_error "MPI.allgather_float_array: array size mismatch"
   else allgather_float_array src dst comm
 
+external allgather_bigarray:
+    ('a, 'b) ba1 -> ('a, 'b) ba1 -> communicator -> unit
+    = "caml_mpi_allgather_bigarray"
+let allgather_bigarray src dst comm =
+  if Bigarray.Array1.dim dst <> Bigarray.Array1.dim src * comm_size comm
+  then mpi_error "MPI.allgather_bigarray: array size mismatch"
+  else allgather_bigarray src dst comm
+
 (* Reduce *)
 
 type intop =
   Int_max | Int_min | Int_sum | Int_prod | Int_land | Int_lor | Int_xor
 type floatop =
   Float_max | Float_min | Float_sum | Float_prod
+
+let is_not_also_floatop x =
+  match x with
+  | Int_max | Int_min | Int_sum | Int_prod -> false
+  | Int_land | Int_lor | Int_xor -> true
 
 external reduce_int:
     int -> intop -> rank -> communicator -> int
@@ -450,6 +537,17 @@ let reduce_float_array src dst op rank comm =
   if rank = comm_rank comm && Array.length src <> Array.length dst
   then mpi_error "Mpi.reduce_float_array: array size mismatch"
   else reduce_float_array src dst op rank comm
+
+external reduce_bigarray:
+    ('a, 'b) ba1 -> ('a, 'b) ba1 -> intop -> rank -> communicator -> unit
+    = "caml_mpi_reduce_bigarray"
+let reduce_bigarray src dst op rank comm =
+  if rank = comm_rank comm && Bigarray.Array1.dim src <> Bigarray.Array1.dim dst
+  then mpi_error "Mpi.reduce_bigarray: array size mismatch";
+  if ba_kind_is_float (Bigarray.Array1.kind src)
+     && is_not_also_floatop op
+  then mpi_error "Mpi.reduce_bigarray: invalid floating-point operation"
+  else reduce_bigarray src dst op rank comm
 
 (* Reduce at all nodes *)
 
@@ -474,6 +572,17 @@ let allreduce_float_array src dst op comm =
   if Array.length src <> Array.length dst
   then mpi_error "Mpi.allreduce_float_array: array size mismatch"
   else allreduce_float_array src dst op comm
+
+external allreduce_bigarray:
+    ('a, 'b) ba1 -> ('a, 'b) ba1 -> intop -> communicator -> unit
+    = "caml_mpi_allreduce_bigarray"
+let allreduce_bigarray src dst op comm =
+  if Bigarray.Array1.dim src <> Bigarray.Array1.dim dst
+  then mpi_error "Mpi.allreduce_bigarray: array size mismatch";
+  if ba_kind_is_float (Bigarray.Array1.kind src)
+     && is_not_also_floatop op
+  then mpi_error "Mpi.allreduce_bigarray: invalid floating-point operation"
+  else allreduce_bigarray src dst op comm
 
 (* Scan *)
 
@@ -500,6 +609,17 @@ let scan_float_array src dst op comm =
   if Array.length dst <> Array.length src
   then mpi_error "Mpi.scan_float_array: array size mismatch"
   else scan_float_array src dst op comm
+
+external scan_bigarray:
+    ('a, 'b) ba1 -> ('a, 'b) ba1 -> intop -> communicator -> unit
+    = "caml_mpi_scan_bigarray"
+let scan_bigarray src dst op comm =
+  if Bigarray.Array1.dim dst <> Bigarray.Array1.dim src
+  then mpi_error "Mpi.scan_bigarray: array size mismatch";
+  if ba_kind_is_float (Bigarray.Array1.kind src)
+     && is_not_also_floatop op
+  then mpi_error "Mpi.scan_bigarray: invalid floating-point operation"
+  else scan_bigarray src dst op comm
 
 (*** Process group management *)
 

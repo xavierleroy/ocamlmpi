@@ -19,6 +19,7 @@
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
 #include <caml/alloc.h>
+#include <caml/bigarray.h>
 #include "camlmpi.h"
 
 /* Barrier synchronization */
@@ -65,6 +66,16 @@ value caml_mpi_broadcast_floatarray(value data, value root, value comm)
   double * d = caml_mpi_input_floatarray(data, len);
   MPI_Bcast(d, len, MPI_DOUBLE, Int_val(root), Comm_val(comm));
   caml_mpi_commit_floatarray(d, data, len);
+  return Val_unit;
+}
+
+value caml_mpi_broadcast_bigarray(value data, value root, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  mlsize_t len = d->dim[0];
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+
+  MPI_Bcast(d->data, len, dt, Int_val(root), Comm_val(comm));
   return Val_unit;
 }
 
@@ -129,6 +140,21 @@ value caml_mpi_scatter_float(value data, value root, value comm)
   return caml_copy_double(dst);
 }
 
+CAMLprim value caml_mpi_scatter_from_bigarray(value data, value root,
+					      value comm)
+{
+  CAMLparam3(data, root, comm);
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  intnat kind = d->flags & CAML_BA_KIND_MASK;
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[kind];
+
+  any_ba_value(dst);
+  MPI_Scatter(d->data, 1, dt, &dst, 1, dt,
+              Int_val(root), Comm_val(comm));
+
+  CAMLreturn(caml_mpi_ba_value(dst, kind));
+}
+
 value caml_mpi_scatter_intarray(value source, value dest,
                                 value root, value comm)
 {
@@ -151,6 +177,19 @@ value caml_mpi_scatter_floatarray(value source, value dest,
               Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(src);
   caml_mpi_commit_floatarray(dst, dest, len);
+  return Val_unit;
+}
+
+value caml_mpi_scatter_bigarray(value source, value dest,
+                                value root, value comm)
+{
+  struct caml_ba_array* s = Caml_ba_array_val(source);
+  struct caml_ba_array* d = Caml_ba_array_val(dest);
+  mlsize_t len = d->dim[0];
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+
+  MPI_Scatter(s->data, len, dt, d->data, len, dt,
+              Int_val(root), Comm_val(comm));
   return Val_unit;
 }
 
@@ -205,6 +244,34 @@ value caml_mpi_gather_float(value data, value result, value root, value comm)
   return Val_unit;
 }
 
+CAMLprim value caml_mpi_gather_to_bigarray(value data, value result,
+				           value root, value comm)
+{
+  CAMLparam4(data, result, root, comm);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  intnat kind = r->flags & CAML_BA_KIND_MASK;
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[kind];
+
+  any_ba_value(d);
+  caml_mpi_ba_element(data, kind, d);
+
+  MPI_Gather(d, 1, dt, r->data, 1, dt, Int_val(root), Comm_val(comm));
+  CAMLreturn(Val_unit);
+}
+
+value caml_mpi_gather_bigarray(value data, value result,
+			       value root, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  mlsize_t len = d->dim[0];
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[r->flags & CAML_BA_KIND_MASK];
+
+  MPI_Gather(d->data, len, dt, r->data, len, dt,
+	     Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
 /* Gather to all */
 
 value caml_mpi_allgather(value sendbuf,
@@ -250,6 +317,32 @@ value caml_mpi_allgather_float(value data, value result, value comm)
                 Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, reslen);
+  return Val_unit;
+}
+
+CAMLprim value caml_mpi_allgather_to_bigarray(value data, value result,
+					      value comm)
+{
+  CAMLparam3(data, result, comm);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  intnat kind = r->flags & CAML_BA_KIND_MASK;
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[kind];
+
+  any_ba_value(d);
+  caml_mpi_ba_element(data, kind, d);
+
+  MPI_Allgather(d, 1, dt, r->data, 1, dt, Comm_val(comm));
+  CAMLreturn(Val_unit);
+}
+
+value caml_mpi_allgather_bigarray(value data, value result, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  mlsize_t len = d->dim[0];
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[r->flags & CAML_BA_KIND_MASK];
+
+  MPI_Allgather(d->data, len, dt, r->data, len, dt, Comm_val(comm));
   return Val_unit;
 }
 
@@ -310,6 +403,19 @@ value caml_mpi_reduce_floatarray(value data, value result, value op,
   return Val_unit;
 }
 
+value caml_mpi_reduce_bigarray(value data, value result, value op,
+                               value root, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  mlsize_t len = d->dim[0];
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+
+  MPI_Reduce(d->data, r->data, len, dt,
+             reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
+  return Val_unit;
+}
+
 /* Allreduce */
 
 value caml_mpi_allreduce_int(value data, value op, value comm)
@@ -360,6 +466,19 @@ value caml_mpi_allreduce_floatarray(value data, value result, value op,
   return Val_unit;
 }
 
+value caml_mpi_allreduce_bigarray(value data, value result, value op,
+                                  value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  mlsize_t len = d->dim[0];
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+
+  MPI_Allreduce(d->data, r->data, len, dt,
+                reduce_intop[Int_val(op)], Comm_val(comm));
+  return Val_unit;
+}
+
 /* Scan */
 
 value caml_mpi_scan_int(value data, value op, value comm)
@@ -406,6 +525,18 @@ value caml_mpi_scan_floatarray(value data, value result, value op, value comm)
            reduce_floatop[Int_val(op)], Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
+  return Val_unit;
+}
+
+value caml_mpi_scan_bigarray(value data, value result, value op, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  mlsize_t len = d->dim[0];
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+
+  MPI_Scan(d->data, r->data, len, dt,
+           reduce_intop[Int_val(op)], Comm_val(comm));
   return Val_unit;
 }
 

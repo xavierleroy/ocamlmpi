@@ -78,26 +78,35 @@ let _ = barrier comm_world
 
 (* Send and receive base types *)
 
-let test_send_recv sendfun recvfun transf printfun data =
+let test_send_recv msg sendfun recvfun transf printfun data =
   if myrank = 0 then begin
     for i = 1 to size - 1 do
-      printf "0: sending %a to %d" printfun data.(i-1) i; print_newline();
+      printf "0: %s sending %a to %d" msg printfun data.(i-1) i; print_newline();
       sendfun data.(i-1) i 0 comm_world
     done;
     for i = 1 to size - 1 do
       let x = recvfun i 0 comm_world in
-      printf "0: received %a" printfun x; print_newline()
+      printf "0: %s received %a" msg printfun x; print_newline()
     done
   end else begin
     let x = recvfun 0 0 comm_world in
     let y = transf x in
-    printf "%d: received %a, sending %a" myrank printfun x printfun y;
+    printf "%d: %s received %a, sending %a" myrank msg printfun x printfun y;
     print_newline();
     sendfun y 0 0 comm_world
   end
 
 let output_int o i = output_string o (string_of_int i)
 let output_float o f = output_string o (string_of_float f)
+let output_complex o c =
+  let open Complex in
+  if c.re <> 0. then output_string o (string_of_float c.re);
+  if c.re <> 0. && c.im > 0. then output_string o "+";
+  if c.im <> 0. then (output_string o (string_of_float c.im);
+                      output_string o "i")
+let output_int32 o i = output_string o (Int32.to_string i)
+let output_int64 o i = output_string o (Int64.to_string i)
+let output_nativeint o i = output_string o (Nativeint.to_string i)
 let output_array fn o a =
   output_string o "[ ";
   for i = 0 to Array.length a - 1 do
@@ -106,24 +115,60 @@ let output_array fn o a =
   output_string o "]"
 let output_int_array = output_array output_int
 let output_float_array = output_array output_float
+let output_bigarray fn o a =
+  output_string o "[ ";
+  for i = 0 to Bigarray.Array1.dim a - 1 do
+    fn o a.{i}; output_char o ' '
+  done;
+  output_string o "]"
+let bigarray1_dup a = Bigarray.Array1.(create (kind a) (layout a) (dim a))
+let bigarray_map f a =
+  let r = bigarray1_dup a in
+  for i = 0 to Bigarray.Array1.dim a - 1 do
+    r.{i} <- f a.{i}
+  done;
+  r
+let makebigarray k n v =
+  let ba = Bigarray.(Array1.create k C_layout n) in
+  Bigarray.Array1.fill ba v;
+  ba
+let tobigarray k = Bigarray.Array1.(of_array k C_layout)
+let tobigarrays k = Array.map (tobigarray k)
+let cx re im = Complex.({re; im})
+let cxr re = Complex.({re; im = 0.0})
+let cxi im = Complex.({re = 0.0; im})
 
 let _ =
-  test_send_recv send_int receive_int (fun n -> n+1) output_int
+  test_send_recv "int" send_int receive_int (fun n -> n+1) output_int
     [| 10; 20; 30; 40; 50; 60; 70; 80; 90 |];
-  test_send_recv send_float receive_float (fun n -> n *. 2.0) output_float
+  test_send_recv "float" send_float receive_float (fun n -> n *. 2.0) output_float
     [| 0.1; 0.2; 0.3; 0.4; 0.5; 0.6; 0.7; 0.8; 0.9 |];
   let ia = Array.make 3 0 in
-  test_send_recv send_int_array
+  test_send_recv "int array" send_int_array
                (fun src tag comm -> receive_int_array ia src tag comm; ia)
                (Array.map (fun n -> n+1))
                output_int_array
                [| [|10;11;12|]; [|20;21;22|]; [|30;31;32|]; [|40;41;42|] |];
   let fa = Array.make 2 0.0 in
-  test_send_recv send_float_array
+  test_send_recv "float array" send_float_array
                (fun src tag comm -> receive_float_array fa src tag comm; fa)
                (Array.map (fun n -> n +. 0.01))
                output_float_array
-               [| [|1.1; 1.2|]; [|2.1; 2.2|]; [|3.1; 3.2|]; [|4.1; 4.2|] |]
+               [| [|1.1; 1.2|]; [|2.1; 2.2|]; [|3.1; 3.2|]; [|4.1; 4.2|] |];
+  let ba = makebigarray Float64 2 0.0 in
+  test_send_recv "bigarray(Float64)" send_bigarray
+               (fun src tag comm -> receive_bigarray ba src tag comm; ba)
+               (bigarray_map (fun n -> n +. 0.01))
+               (output_bigarray output_float)
+               (tobigarrays Float64
+                 [| [|1.1; 1.2|]; [|2.1; 2.2|]; [|3.1; 3.2|]; [|4.1; 4.2|] |]);
+  let ba = makebigarray Int16_signed 3 0 in
+  test_send_recv "bigarray(Int16)" send_bigarray
+               (fun src tag comm -> receive_bigarray ba src tag comm; ba)
+               (bigarray_map (fun n -> n+1))
+               (output_bigarray output_int)
+               (tobigarrays Int16_signed
+                 [| [|10;11;12|]; [|20;21;22|]; [|30;31;32|]; [|40;41;42|] |])
 
 let _ = barrier comm_world
 
@@ -137,114 +182,169 @@ let _ =
 
 (* Broadcast *)
 
-let test_broadcast broadcastfun printfun data =
+let test_broadcast msg broadcastfun printfun data =
   if myrank = 0 then begin
-    printf "0: broadcasting %a" printfun data; print_newline()
+    printf "0: %s broadcasting %a" msg printfun data; print_newline()
   end;
   ignore (broadcastfun data 0 comm_world);
-  printf "%d: received %a" myrank printfun data; print_newline()
+  printf "%d: %s received %a" myrank msg printfun data; print_newline()
 
 let _ =
-  test_broadcast broadcast output_string "Hello!";
-  test_broadcast broadcast_int output_int 123456;
-  test_broadcast broadcast_float output_float 3.141592654;
+  test_broadcast "generic" broadcast output_string "Hello!";
+  test_broadcast "int" broadcast_int output_int 123456;
+  test_broadcast "float" broadcast_float output_float 3.141592654;
   let ia = if myrank = 0 then [| 123; 456; 789 |] else Array.make 3 0 in
-  test_broadcast (fun x r c -> broadcast_int_array x r c; x)
+  test_broadcast "int array"
+                 (fun x r c -> broadcast_int_array x r c; x)
                  output_int_array ia;
   let fa = if myrank = 0 then [| 3.14; 2.718 |] else Array.make 2 0.0 in
-  test_broadcast (fun x r c -> broadcast_float_array x r c; x)
-                 output_float_array fa
+  test_broadcast "float array"
+                 (fun x r c -> broadcast_float_array x r c; x)
+                 output_float_array fa;
+  let ba = if myrank = 0
+           then tobigarray Float32 [| 3.14; 2.718 |]
+           else makebigarray Float32 2 0.0 in
+  test_broadcast "bigarray(Float32)"
+                 (fun x r c -> broadcast_bigarray x r c; x)
+                 (output_bigarray output_float) ba
 
 let _ = barrier comm_world
 
 (* Scatter *)
 
-let test_scatter scatterfun printfun1 printfun2 data =
+let test_scatter msg scatterfun printfun1 printfun2 data =
   if myrank = 0 then begin
-    printf "0: scattering %a" printfun1 data;
+    printf "0: %s scattering %a" msg printfun1 data;
     print_newline()
   end;
   let res = scatterfun data 0 comm_world in
-  printf "%d: received %a" myrank printfun2 res; print_newline();
+  printf "%d: %s received %a" myrank msg printfun2 res; print_newline();
   barrier comm_world
   
 let _ =
-  test_scatter scatter (output_array output_string) output_string
+  test_scatter "generic" scatter (output_array output_string) output_string
     [| "Six"; "scies"; "scient"; "six"; "cigares" |];
-  test_scatter scatter_int output_int_array output_int
+  test_scatter "int" scatter_int output_int_array output_int
     [| 12; 34; 56; 78; 90 |];
-  test_scatter scatter_float output_float_array output_float
+  test_scatter "float" scatter_float output_float_array output_float
     [| 1.2; 3.4; 5.6; 7.8; 9.1 |];
+  test_scatter "from bigarray(Complex64)"
+    scatter_from_bigarray (output_bigarray output_complex) output_complex
+    (tobigarray Complex64
+                [| cxr 1.; cxi 1.; cxr (-1.); cxi (-1.); cx 0.5 (-0.5) |]);
   let ia = Array.make 3 0 in
-  test_scatter (fun d r c -> scatter_int_array d ia r c; ia)
+  test_scatter "int array"
+               (fun d r c -> scatter_int_array d ia r c; ia)
                output_int_array output_int_array
                [| 10;11;12; 20;21;22; 30;31;32; 40;41;42; 50;51;52 |];
   let fa = Array.make 3 0.0 in
-  test_scatter (fun d r c -> scatter_float_array d fa r c; fa)
+  test_scatter "float array"
+               (fun d r c -> scatter_float_array d fa r c; fa)
                output_float_array output_float_array
                [| 1.0;1.1;1.2; 2.0;2.1;2.2; 3.0;3.1;3.2;
-                  4.0;4.1;4.2; 5.0;5.1;5.2 |]
-
+                  4.0;4.1;4.2; 5.0;5.1;5.2 |];
+  let ba = makebigarray Char 3 '@' in
+  test_scatter "bigarray(Char)"
+               (fun d r c -> scatter_bigarray d ba r c; ba)
+               (output_bigarray output_char)
+               (output_bigarray output_char)
+               (tobigarray Char [| 'a';'b';'c'; 'd';'e';'f'; 'g';'h';'I';
+                                   'J';'K';'L'; 'M'; 'N'; 'O' |])
 
 (* Gather *)
 
-let test_gather gatherfun printfun1 printfun2 data =
-  printf "%d: sending %a" myrank printfun2 data; print_newline();
+let test_gather msg gatherfun printfun1 printfun2 data =
+  printf "%d: %s sending %a" myrank msg printfun2 data; print_newline();
   let res = gatherfun data 0 comm_world in
   if myrank = 0 then begin
-    printf "0: gathered %a" printfun1 res;
+    printf "0: %s gathered %a" msg printfun1 res;
     print_newline()
   end;
   barrier comm_world
   
 let _ =
-  test_gather gather (output_array output_string) output_string
+  test_gather "generic" gather (output_array output_string) output_string
     [| "The"; "quick"; "fox"; "jumps"; "over" |].(myrank);
   let ia = Array.make size 0 in
-  test_gather (fun d r c -> gather_int d ia r c; ia) 
+  test_gather "int"
+              (fun d r c -> gather_int d ia r c; ia) 
               output_int_array output_int
               [| 12; 34; 56; 78; 90 |].(myrank);
   let fa = Array.make size 0.0 in
-  test_gather (fun d r c -> gather_float d fa r c; fa) 
+  test_gather "float"
+              (fun d r c -> gather_float d fa r c; fa) 
               output_float_array output_float
               [| 1.2; 3.4; 5.6; 7.8; 9.1 |].(myrank);
+  let ba = makebigarray Int64 size 0L in
+  test_gather "to_bigarray(Int64)"
+              (fun d r c -> gather_to_bigarray d ba r c; ba)
+              (output_bigarray output_int64) output_int64
+              [| 12L; 34L; 56L; 78L; 90L |].(myrank);
   let ia = Array.make (3 * size) 0 in
-  test_gather (fun d r c -> gather_int_array d ia r c; ia) 
+  test_gather "int array"
+              (fun d r c -> gather_int_array d ia r c; ia) 
               output_int_array output_int_array
               [| myrank*10; myrank*10 + 1; myrank*10 + 2 |];               
   let fa = Array.make (3 * size) 0.0 in
-  test_gather (fun d r c -> gather_float_array d fa r c; fa) 
+  test_gather "float array"
+              (fun d r c -> gather_float_array d fa r c; fa) 
               output_float_array output_float_array
-              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
+              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
+  let ba = makebigarray Complex32 (3 * size) Complex.zero in
+  test_gather "bigarray(Complex32)"
+              (fun d r c -> gather_bigarray d ba r c; ba)
+              (output_bigarray output_complex) (output_bigarray output_complex)
+              (tobigarray Complex32
+                [| cx (float myrank) 0.25;
+                   cx (float myrank) 0.50;
+                   cx (float myrank) 0.75 |])
 
 (* Gather to all *)
 
-let test_allgather gatherfun printfun1 printfun2 data =
-  printf "%d: sending %a" myrank printfun2 data; print_newline();
+let test_allgather msg gatherfun printfun1 printfun2 data =
+  printf "%d: %s sending %a" myrank msg printfun2 data; print_newline();
   let res = gatherfun data comm_world in
-  printf "%d: gathered %a" myrank printfun1 res;
+  printf "%d: %s gathered %a" myrank msg printfun1 res;
   print_newline();
   barrier comm_world
   
 let _ =
-  test_allgather allgather (output_array output_string) output_string
+  test_allgather "generic" allgather (output_array output_string) output_string
     [| "The"; "quick"; "fox"; "jumps"; "over" |].(myrank);
   let ia = Array.make size 0 in
-  test_allgather (fun d c -> allgather_int d ia c; ia) 
+  test_allgather "int"
+              (fun d c -> allgather_int d ia c; ia) 
               output_int_array output_int
               [| 12; 34; 56; 78; 90 |].(myrank);
   let fa = Array.make size 0.0 in
-  test_allgather (fun d c -> allgather_float d fa c; fa) 
+  test_allgather "float"
+              (fun d c -> allgather_float d fa c; fa) 
               output_float_array output_float
               [| 1.2; 3.4; 5.6; 7.8; 9.1 |].(myrank);
+  let ba = makebigarray Int size 0 in
+  test_allgather "to bigarray(Int)"
+              (fun d c -> allgather_to_bigarray d ba c; ba)
+              (output_bigarray output_int) output_int
+              [| 12; 34; 56; 78; 90 |].(myrank);
   let ia = Array.make (3 * size) 0 in
-  test_allgather (fun d c -> allgather_int_array d ia c; ia) 
+  test_allgather "int array"
+              (fun d c -> allgather_int_array d ia c; ia) 
               output_int_array output_int_array
               [| myrank*10; myrank*10 + 1; myrank*10 + 2 |];               
   let fa = Array.make (3 * size) 0.0 in
-  test_allgather (fun d c -> allgather_float_array d fa c; fa) 
+  test_allgather "float array"
+              (fun d c -> allgather_float_array d fa c; fa) 
               output_float_array output_float_array
-              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
+              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
+  let ba = makebigarray Nativeint (3 * size) 0n in
+  test_allgather "bigarray(Nativeint)"
+              (fun d c -> allgather_bigarray d ba c; ba)
+              (output_bigarray output_nativeint)
+              (output_bigarray output_nativeint)
+              (tobigarray Nativeint
+                Nativeint.([| of_int (myrank*10);
+                              of_int (myrank*10 + 1);
+                              of_int (myrank*10 + 2) |]))
 
 (* Reduce *)
 
@@ -263,96 +363,134 @@ let name_of_float_reduce = function
   | Float_sum -> "Float_sum"
   | Float_prod -> "Float_prod"
 
-let test_reduce reducefun reduceops printfun printop data =
-  printf "%d: my data is %a" myrank printfun data; print_newline();
+let test_reduce msg reducefun reduceops printfun printop data =
+  printf "%d: %s my data is %a" myrank msg printfun data; print_newline();
   List.iter
     (fun op ->
       let res = reducefun data op 0 comm_world in
       if myrank = 0 then begin
-        printf "0: result of reduction %s is %a" (printop op) printfun res;
+        printf "0: %s result of reduction %s is %a"
+               msg (printop op) printfun res;
         print_newline()
       end)
     reduceops;
   barrier comm_world
 
 let _ =
-  test_reduce reduce_int
+  test_reduce "int"
+              reduce_int
               [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
               output_int name_of_int_reduce
               (myrank + 1);
-  test_reduce reduce_float
+  test_reduce "float"
+              reduce_float
               [Float_max; Float_min; Float_sum; Float_prod]
               output_float name_of_float_reduce
               (float myrank +. 1.0);
   let ia = Array.make 3 0 in
-  test_reduce (fun d op r c -> reduce_int_array d ia op r c; ia)
+  test_reduce "int array"
+              (fun d op r c -> reduce_int_array d ia op r c; ia)
               [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
               output_int_array name_of_int_reduce
               [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
   let fa = Array.make 3 0.0 in
-  test_reduce (fun d op r c -> reduce_float_array d fa op r c; fa)
+  test_reduce "float array"
+              (fun d op r c -> reduce_float_array d fa op r c; fa)
               [Float_max; Float_min; Float_sum; Float_prod]
               output_float_array name_of_float_reduce
-              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
+              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
+  let ba = makebigarray Int8_unsigned 3 0 in
+  (* note: result of Int_prod is [0 225 0] due to 8-bit precision *)
+  test_reduce "bigarray(Int8_unsigned)"
+              (fun d op r c -> reduce_bigarray d ba op r c; ba)
+              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
+              (output_bigarray output_int) name_of_int_reduce
+              (tobigarray Int8_unsigned
+                [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |])
 
 (* Reduce all *)
 
-let test_reduceall reducefun reduceop printfun data =
-  printf "%d: my data is %a" myrank printfun data; print_newline();
+let test_reduceall msg reducefun reduceop printfun data =
+  printf "%d: %s my data is %a" myrank msg printfun data; print_newline();
   let res = reducefun data reduceop comm_world in
   barrier comm_world;
-  printf "%d: result of reduction is %a" myrank printfun res;
+  printf "%d: %s result of reduction is %a" myrank msg printfun res;
   print_newline();
   barrier comm_world
 
 let _ =
-  test_reduceall allreduce_int Int_sum
+  test_reduceall "int"
+              allreduce_int Int_sum
               output_int
               (myrank + 1);
-  test_reduceall allreduce_float Float_prod
+  test_reduceall "float"
+              allreduce_float Float_prod
               output_float
               (float myrank +. 1.0);
   let ia = Array.make 3 0 in
-  test_reduceall (fun d op c -> allreduce_int_array d ia op c; ia)
+  test_reduceall "int array"
+              (fun d op c -> allreduce_int_array d ia op c; ia)
               Int_sum
               output_int_array
               [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
   let fa = Array.make 3 0.0 in
-  test_reduceall (fun d op c -> allreduce_float_array d fa op c; fa)
+  test_reduceall "float array"
+              (fun d op c -> allreduce_float_array d fa op c; fa)
               Float_sum
               output_float_array
-              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
+              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
+  let ba = makebigarray Complex32 3 Complex.zero in
+  test_reduceall "bigarray(Complex32)"
+              (fun d op c -> allreduce_bigarray d ba op c; ba)
+              Int_sum
+              (output_bigarray output_complex)
+              (tobigarray Complex32
+                [| cx (float myrank +. 0.25) (float myrank +. 0.25);
+                   cx (float myrank +. 0.50) (float myrank +. 0.50);
+                   cx (float myrank +. 0.75) (float myrank +. 0.75) |])
 
 
 (* Scan *)
 
-let test_scan scanfun reduceop printfun data =
-  printf "%d: my data is %a" myrank printfun data; print_newline();
+let test_scan msg scanfun reduceop printfun data =
+  printf "%d: %s my data is %a" myrank msg printfun data; print_newline();
   let res = scanfun data reduceop comm_world in
   barrier comm_world;
-  printf "%d: result of scanning is %a" myrank printfun res;
+  printf "%d: %s result of scanning is %a" myrank msg printfun res;
   print_newline();
   barrier comm_world
 
 let _ =
-  test_scan scan_int
+  test_scan "int"
+              scan_int
               Int_sum
               output_int
               (myrank + 1);
-  test_scan scan_float
+  test_scan "float"
+              scan_float
               Float_sum
               output_float
               (float myrank +. 1.0);
   let ia = Array.make 3 0 in
-  test_scan (fun d op c -> scan_int_array d ia op c; ia)
+  test_scan "int array"
+              (fun d op c -> scan_int_array d ia op c; ia)
               Int_sum
               output_int_array
               [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
   let fa = Array.make 3 0.0 in
-  test_scan (fun d op c -> scan_float_array d fa op c; fa)
+  test_scan "float array"
+              (fun d op c -> scan_float_array d fa op c; fa)
               Float_sum
               output_float_array
-              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |]
+              [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
+  let ba = makebigarray Int32 3 0l in
+  let r = Int32.of_int myrank in
+  test_scan "bigarray(Int32)"
+              (fun d op c -> scan_bigarray d ba op c; ba)
+              Int_sum
+              (output_bigarray output_int32)
+              (tobigarray Int32 Int32.(
+                [| mul r 10l; add (mul r 10l) 1l; add (mul r 10l) 2l |]))
 
 (* Comm split *)
 

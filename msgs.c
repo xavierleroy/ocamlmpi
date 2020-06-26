@@ -21,6 +21,7 @@
 #include <caml/intext.h>
 #include <caml/memory.h>
 #include <caml/signals.h>
+#include <caml/bigarray.h>
 #include <stdio.h>
 #include "camlmpi.h"
 
@@ -78,6 +79,16 @@ value caml_mpi_send_float(value data, value dest, value tag, value comm)
 
   MPI_Send(d, len, MPI_DOUBLE, Int_val(dest), Int_val(tag), Comm_val(comm));
   caml_mpi_free_floatarray(d);
+  return Val_unit;
+}
+
+value caml_mpi_send_bigarray(value data, value dest, value tag, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  mlsize_t len = d->dim[0];
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+
+  MPI_Send(d->data, len, dt, Int_val(dest), Int_val(tag), Comm_val(comm));
   return Val_unit;
 }
 
@@ -182,6 +193,18 @@ value caml_mpi_receive_floatarray(value data, value source, value tag, value com
   MPI_Recv(d, len, MPI_DOUBLE,
            Int_val(source), Int_val(tag), Comm_val(comm), &status);
   caml_mpi_commit_floatarray(d, data, len);
+  return Val_unit;
+}
+
+value caml_mpi_receive_bigarray(value data, value source, value tag, value comm)
+{
+  MPI_Status status;
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  mlsize_t len = d->dim[0];
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+
+  MPI_Recv(d->data, len, dt,
+           Int_val(source), Int_val(tag), Comm_val(comm), &status);
   return Val_unit;
 }
 
