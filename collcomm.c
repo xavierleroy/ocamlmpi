@@ -410,9 +410,17 @@ value caml_mpi_reduce_bigarray(value data, value result, value op,
   struct caml_ba_array* r = Caml_ba_array_val(result);
   mlsize_t len = d->dim[0];
   MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+  MPI_Comm vcomm = Comm_val(comm);
+  int rank;
+  void* sendbuf = d->data;
 
-  MPI_Reduce(d->data, r->data, len, dt,
-             reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
+  if (d->data == r->data) {
+      MPI_Comm_rank(vcomm, &rank);
+      if (rank == root) sendbuf = MPI_IN_PLACE;
+  }
+
+  MPI_Reduce(sendbuf, r->data, len, dt,
+             reduce_intop[Int_val(op)], Int_val(root), vcomm);
   return Val_unit;
 }
 
@@ -473,9 +481,10 @@ value caml_mpi_allreduce_bigarray(value data, value result, value op,
   struct caml_ba_array* r = Caml_ba_array_val(result);
   mlsize_t len = d->dim[0];
   MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+  void* sendbuf = (d->data == r->data) ? MPI_IN_PLACE : d->data;
 
-  MPI_Allreduce(d->data, r->data, len, dt,
-                reduce_intop[Int_val(op)], Comm_val(comm));
+  MPI_Allreduce(sendbuf, r->data, len, dt,
+		reduce_intop[Int_val(op)], Comm_val(comm));
   return Val_unit;
 }
 
@@ -534,8 +543,9 @@ value caml_mpi_scan_bigarray(value data, value result, value op, value comm)
   struct caml_ba_array* r = Caml_ba_array_val(result);
   mlsize_t len = d->dim[0];
   MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+  void* sendbuf = (d->data == r->data) ? MPI_IN_PLACE : d->data;
 
-  MPI_Scan(d->data, r->data, len, dt,
+  MPI_Scan(sendbuf, r->data, len, dt,
            reduce_intop[Int_val(op)], Comm_val(comm));
   return Val_unit;
 }
