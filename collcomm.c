@@ -33,7 +33,7 @@ value caml_mpi_barrier(value comm)
 
 value caml_mpi_broadcast(value buffer, value root, value comm)
 {
-  MPI_Bcast(String_val(buffer), caml_string_length(buffer), MPI_BYTE,
+  MPI_Bcast(Bp_val(buffer), caml_string_length(buffer), MPI_BYTE,
             Int_val(root), Comm_val(comm));
   return Val_unit;
 }
@@ -99,7 +99,7 @@ value caml_mpi_scatter(value sendbuf, value sendlengths,
 
   caml_mpi_counts_displs(sendlengths, &sendcounts, &displs);
   MPI_Scatterv(String_val(sendbuf), sendcounts, displs, MPI_BYTE,
-               String_val(recvbuf), caml_string_length(recvbuf), MPI_BYTE,
+               Bp_val(recvbuf), caml_string_length(recvbuf), MPI_BYTE,
                Int_val(root), Comm_val(comm));
   if (sendcounts != NULL) {
     caml_stat_free(sendcounts);
@@ -164,7 +164,7 @@ value caml_mpi_gather(value sendbuf,
 
   caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
   MPI_Gatherv(String_val(sendbuf), caml_string_length(sendbuf), MPI_BYTE,
-              String_val(recvbuf), recvcounts, displs, MPI_BYTE,
+              Bp_val(recvbuf), recvcounts, displs, MPI_BYTE,
               Int_val(root), Comm_val(comm));
   if (recvcounts != NULL) {
     caml_stat_free(recvcounts);
@@ -215,7 +215,7 @@ value caml_mpi_allgather(value sendbuf,
 
   caml_mpi_counts_displs(recvlengths, &recvcounts, &displs);
   MPI_Allgatherv(String_val(sendbuf), caml_string_length(sendbuf), MPI_BYTE,
-                 String_val(recvbuf), recvcounts, displs, MPI_BYTE,
+                 Bp_val(recvbuf), recvcounts, displs, MPI_BYTE,
                  Comm_val(comm));
   caml_stat_free(recvcounts);
   caml_stat_free(displs);

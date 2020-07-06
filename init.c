@@ -53,7 +53,7 @@ value caml_mpi_init(value arguments)
 
   argc = Wosize_val(arguments);
   argv = caml_stat_alloc((argc + 1) * sizeof(char *));
-  for (i = 0; i < argc; i++) argv[i] = String_val(Field(arguments, i));
+  for (i = 0; i < argc; i++) argv[i] = Bp_val(Field(arguments, i));
   argv[i] = NULL;
   MPI_Init(&argc, &argv);
   /* Register an error handler */
