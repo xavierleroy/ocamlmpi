@@ -43,6 +43,16 @@ static void caml_mpi_error_handler(MPI_Comm * comm, int * errcode, ...)
   caml_raise_with_arg(*caml_mpi_exn, msg);
 }
 
+void caml_mpi_raise_error(const char *msg)
+{
+  if (caml_mpi_exn == NULL) {
+    caml_mpi_exn = caml_named_value("Mpi.Error");
+    if (caml_mpi_exn == NULL)
+      caml_invalid_argument("Exception MPI.Error not initialized");
+  }
+  caml_raise_with_string(*caml_mpi_exn, msg);
+}
+
 /* Bigarrays */
 
 MPI_Datatype caml_mpi_ba_mpi_type[] =

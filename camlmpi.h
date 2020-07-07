@@ -20,6 +20,7 @@
 #define Request_req_val(req) (*((MPI_Request *) &Field(req, 1)))
 #define Buffer_req_val(req)   (*((char **) &Field(req, 2)))
 
+extern void caml_mpi_raise_error(const char *msg);
 extern value caml_mpi_alloc_comm(MPI_Comm c);
 
 extern void caml_mpi_decode_intarray(value array, mlsize_t len);
