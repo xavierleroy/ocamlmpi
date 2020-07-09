@@ -85,10 +85,10 @@ value caml_mpi_send_float(value data, value dest, value tag, value comm)
 value caml_mpi_send_bigarray(value data, value dest, value tag, value comm)
 {
   struct caml_ba_array* d = Caml_ba_array_val(data);
-  mlsize_t len = d->dim[0];
+  mlsize_t dlen = caml_ba_num_elts(d);
   MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
 
-  MPI_Send(d->data, len, dt, Int_val(dest), Int_val(tag), Comm_val(comm));
+  MPI_Send(d->data, dlen, dt, Int_val(dest), Int_val(tag), Comm_val(comm));
   return Val_unit;
 }
 
@@ -200,10 +200,10 @@ value caml_mpi_receive_bigarray(value data, value source, value tag, value comm)
 {
   MPI_Status status;
   struct caml_ba_array* d = Caml_ba_array_val(data);
-  mlsize_t len = d->dim[0];
+  mlsize_t dlen = caml_ba_num_elts(d);
   MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
 
-  MPI_Recv(d->data, len, dt,
+  MPI_Recv(d->data, dlen, dt,
            Int_val(source), Int_val(tag), Comm_val(comm), &status);
   return Val_unit;
 }

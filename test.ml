@@ -91,7 +91,8 @@ let test_send_recv msg sendfun recvfun transf printfun data =
   end else begin
     let x = recvfun 0 0 comm_world in
     let y = transf x in
-    printf "%d: %s received %a, sending %a" myrank msg printfun x printfun y;
+    printf "%d: %s received %a,\n   %s  sending %a"
+      myrank msg printfun x (String.map (fun _ -> ' ') msg) printfun y;
     print_newline();
     sendfun y 0 0 comm_world
   end
@@ -115,25 +116,90 @@ let output_array fn o a =
   output_string o "]"
 let output_int_array = output_array output_int
 let output_float_array = output_array output_float
-let output_bigarray fn o a =
+let loop_bounds (type t) (l : t Bigarray.layout) n =
+  match l with C_layout -> 0, n - 1 | Fortran_layout -> 1, n
+let bigarray1_bounds (type t) (a : ('a, 'b, t) Bigarray.Array1.t) =
+  loop_bounds (Bigarray.Array1.layout a) (Bigarray.Array1.dim a)
+let output_bigarray0 fn o a =
   output_string o "[ ";
-  for i = 0 to Bigarray.Array1.dim a - 1 do
+  fn o (Bigarray.Array0.get a);
+  output_string o " ]"
+let output_bigarray1 fn o a =
+  let b, e = bigarray1_bounds a in
+  output_string o "[ ";
+  for i = b to e do
     fn o a.{i}; output_char o ' '
   done;
   output_string o "]"
-let bigarray1_dup a = Bigarray.Array1.(create (kind a) (layout a) (dim a))
-let bigarray_map f a =
-  let r = bigarray1_dup a in
-  for i = 0 to Bigarray.Array1.dim a - 1 do
+let output_bigarray2 fn o a =
+  let n1, n2 = Bigarray.Array2.(dim1 a, dim2 a) in
+  let bi, ei = loop_bounds (Bigarray.Array2.layout a) n1 in
+  let bj, ej = loop_bounds (Bigarray.Array2.layout a) n2 in
+  output_string o "[ ";
+  for i = bi to ei do
+    if i > 0 then output_string o "; ";
+    for j = bj to ej do
+      fn o a.{i,j}; output_char o ' '
+    done
+  done;
+  output_string o "]"
+let output_bigarray2 (type t) fn o (a : ('a, 'b, t) Bigarray.Array2.t) =
+  let n1, n2 = Bigarray.Array2.(dim1 a, dim2 a) in
+  output_string o "[ ";
+  (match Bigarray.Array2.layout a with
+   | C_layout ->
+       for i = 0 to n1 - 1 do
+         if i > 0 then output_string o "; ";
+         for j = 0 to n2 - 1 do
+           fn o a.{i,j}; output_char o ' '
+         done
+       done;
+   | Fortran_layout ->
+       for j = 1 to n2 do
+         if j > 1 then output_string o "; ";
+         for i = 1 to n1 do
+           fn o a.{i,j}; output_char o ' '
+         done
+       done;
+  );
+  output_string o "]"
+let bigarray0_map f a = Bigarray.Array0.(set a (f (get a))); a
+let bigarray1_map f a =
+  let r = Bigarray.Array1.(create (kind a) (layout a) (dim a)) in
+  let b, e = bigarray1_bounds a in
+  for i = b to e do
     r.{i} <- f a.{i}
   done;
   r
-let makebigarray k n v =
-  let ba = Bigarray.(Array1.create k C_layout n) in
+let bigarray2_map f a =
+  let n1, n2 = Bigarray.Array2.(dim1 a, dim2 a) in
+  let r = Bigarray.Array2.(create (kind a) (layout a) n1 n2) in
+  let bi, ei = loop_bounds (Bigarray.Array2.layout a) n1 in
+  let bj, ej = loop_bounds (Bigarray.Array2.layout a) n2 in
+  for i = bi to ei do
+    for j = bj to ej do
+      r.{i, j} <- f a.{i, j}
+    done
+  done;
+  r
+let makebigarray0 k l v =
+  let ba = Bigarray.(Array0.create k l) in
+  Bigarray.Array0.fill ba v;
+  ba
+let makebigarray1 k l n v =
+  let ba = Bigarray.(Array1.create k l n) in
   Bigarray.Array1.fill ba v;
   ba
-let tobigarray k = Bigarray.Array1.(of_array k C_layout)
-let tobigarrays k = Array.map (tobigarray k)
+let makebigarray2 k l n1 n2 v =
+  let ba = Bigarray.(Array2.create k l n1 n2) in
+  Bigarray.Array2.fill ba v;
+  ba
+let tobigarray0 = Bigarray.Array0.of_value
+let tobigarray1 = Bigarray.Array1.of_array
+let tobigarray2 = Bigarray.Array2.of_array
+let tobigarrays0 k l = Array.map (tobigarray0 k l)
+let tobigarrays1 k l = Array.map (tobigarray1 k l)
+let tobigarrays2 k l = Array.map (tobigarray2 k l)
 let cx re im = Complex.({re; im})
 let cxr re = Complex.({re; im = 0.0})
 let cxi im = Complex.({re = 0.0; im})
@@ -155,20 +221,31 @@ let _ =
                (Array.map (fun n -> n +. 0.01))
                output_float_array
                [| [|1.1; 1.2|]; [|2.1; 2.2|]; [|3.1; 3.2|]; [|4.1; 4.2|] |];
-  let ba = makebigarray Float64 2 0.0 in
-  test_send_recv "bigarray(Float64)" send_bigarray
-               (fun src tag comm -> receive_bigarray ba src tag comm; ba)
-               (bigarray_map (fun n -> n +. 0.01))
-               (output_bigarray output_float)
-               (tobigarrays Float64
+  let ba = makebigarray0 Float64 C_layout 0.0 in
+  test_send_recv "bigarray0(Float64)" send_bigarray0
+               (fun src tag comm -> receive_bigarray0 ba src tag comm; ba)
+               (bigarray0_map (fun n -> n +. 0.01))
+               (output_bigarray0 output_float)
+               (tobigarrays0 Float64 C_layout
+                 [| 1.1; 2.1; 3.1; 4.1 |]);
+  let ba = makebigarray1 Float64 C_layout 2 0.0 in
+  test_send_recv "bigarray1(Float64)" send_bigarray1
+               (fun src tag comm -> receive_bigarray1 ba src tag comm; ba)
+               (bigarray1_map (fun n -> n +. 0.01))
+               (output_bigarray1 output_float)
+               (tobigarrays1 Float64 C_layout
                  [| [|1.1; 1.2|]; [|2.1; 2.2|]; [|3.1; 3.2|]; [|4.1; 4.2|] |]);
-  let ba = makebigarray Int16_signed 3 0 in
-  test_send_recv "bigarray(Int16)" send_bigarray
-               (fun src tag comm -> receive_bigarray ba src tag comm; ba)
-               (bigarray_map (fun n -> n+1))
-               (output_bigarray output_int)
-               (tobigarrays Int16_signed
-                 [| [|10;11;12|]; [|20;21;22|]; [|30;31;32|]; [|40;41;42|] |])
+  let ba = makebigarray2 Int16_signed C_layout 2 3 0 in
+  test_send_recv "bigarray2(Int16)" send_bigarray2
+               (fun src tag comm -> receive_bigarray2 ba src tag comm; ba)
+               (bigarray2_map (fun n -> n+1))
+               (output_bigarray2 output_int)
+               (tobigarrays2 Int16_signed C_layout
+                 [| [| [|10;11;12|]; [| 13;14;15 |] |];
+                    [| [|20;21;22|]; [| 23;24;25 |] |];
+                    [| [|30;31;32|]; [| 33;34;35 |] |];
+                    [| [|40;41;42|]; [| 43;44;45 |] |]
+                 |])
 
 let _ = barrier comm_world
 
@@ -202,11 +279,11 @@ let _ =
                  (fun x r c -> broadcast_float_array x r c; x)
                  output_float_array fa;
   let ba = if myrank = 0
-           then tobigarray Float32 [| 3.14; 2.718 |]
-           else makebigarray Float32 2 0.0 in
-  test_broadcast "bigarray(Float32)"
-                 (fun x r c -> broadcast_bigarray x r c; x)
-                 (output_bigarray output_float) ba
+           then tobigarray1 Float32 C_layout [| 3.14; 2.718 |]
+           else makebigarray1 Float32 C_layout 2 0.0 in
+  test_broadcast "bigarray1(Float32)"
+                 (fun x r c -> broadcast_bigarray1 x r c; x)
+                 (output_bigarray1 output_float) ba
 
 let _ = barrier comm_world
 
@@ -228,10 +305,10 @@ let _ =
     [| 12; 34; 56; 78; 90 |];
   test_scatter "float" scatter_float output_float_array output_float
     [| 1.2; 3.4; 5.6; 7.8; 9.1 |];
-  test_scatter "from bigarray(Complex64)"
-    scatter_from_bigarray (output_bigarray output_complex) output_complex
-    (tobigarray Complex64
-                [| cxr 1.; cxi 1.; cxr (-1.); cxi (-1.); cx 0.5 (-0.5) |]);
+  test_scatter "from bigarray1(Complex64)"
+    scatter_from_bigarray1 (output_bigarray1 output_complex) output_complex
+    (tobigarray1 Complex64 C_layout
+                 [| cxr 1.; cxi 1.; cxr (-1.); cxi (-1.); cx 0.5 (-0.5) |]);
   let ia = Array.make 3 0 in
   test_scatter "int array"
                (fun d r c -> scatter_int_array d ia r c; ia)
@@ -243,13 +320,40 @@ let _ =
                output_float_array output_float_array
                [| 1.0;1.1;1.2; 2.0;2.1;2.2; 3.0;3.1;3.2;
                   4.0;4.1;4.2; 5.0;5.1;5.2 |];
-  let ba = makebigarray Char 3 '@' in
-  test_scatter "bigarray(Char)"
+  let ba = makebigarray1 Char Fortran_layout 3 '@' in
+  test_scatter "bigarray1(Char)"
+               (fun d r c -> scatter_bigarray1 d ba r c; ba)
+               (output_bigarray1 output_char)
+               (output_bigarray1 output_char)
+               (tobigarray1 Char Fortran_layout
+                [| 'a';'b';'c'; 'd';'e';'f'; 'g';'h';'I';
+                   'J';'K';'L'; 'M'; 'N'; 'O' |]);
+  let ba = Bigarray.genarray_of_array1
+            (makebigarray1 Char C_layout 3 '@') in
+  test_scatter "bigarray(2->1)(C:Char)"
                (fun d r c -> scatter_bigarray d ba r c; ba)
-               (output_bigarray output_char)
-               (output_bigarray output_char)
-               (tobigarray Char [| 'a';'b';'c'; 'd';'e';'f'; 'g';'h';'I';
-                                   'J';'K';'L'; 'M'; 'N'; 'O' |])
+               (fun o a -> output_bigarray2 output_char o
+                             (Bigarray.array2_of_genarray a))
+               (fun o a -> output_bigarray1 output_char o
+                             (Bigarray.array1_of_genarray a))
+               (Bigarray.genarray_of_array2 (tobigarray2 Char C_layout
+                [| [| 'a';'b';'c' |];
+                   [| 'd';'e';'f' |];
+                   [| 'g';'h';'I' |];
+                   [| 'J';'K';'L' |];
+                   [| 'M';'N';'O' |] |]));
+  let ba = Bigarray.genarray_of_array1
+            (makebigarray1 Char Fortran_layout 3 '@') in
+  test_scatter "bigarray(2->1)(F:Char)"
+               (fun d r c -> scatter_bigarray d ba r c; ba)
+               (fun o a -> output_bigarray2 output_char o
+                             (Bigarray.array2_of_genarray a))
+               (fun o a -> output_bigarray1 output_char o
+                             (Bigarray.array1_of_genarray a))
+               (Bigarray.genarray_of_array2 (tobigarray2 Char Fortran_layout
+                [| [| 'a';'d';'g';'J';'M' |];
+                   [| 'b';'e';'h';'K';'N' |];
+                   [| 'c';'f';'I';'L';'O' |] |]))
 
 (* Gather *)
 
@@ -275,10 +379,10 @@ let _ =
               (fun d r c -> gather_float d fa r c; fa) 
               output_float_array output_float
               [| 1.2; 3.4; 5.6; 7.8; 9.1 |].(myrank);
-  let ba = makebigarray Int64 size 0L in
-  test_gather "to_bigarray(Int64)"
-              (fun d r c -> gather_to_bigarray d ba r c; ba)
-              (output_bigarray output_int64) output_int64
+  let ba = makebigarray1 Int64 C_layout size 0L in
+  test_gather "to_bigarray1(Int64)"
+              (fun d r c -> gather_to_bigarray1 d ba r c; ba)
+              (output_bigarray1 output_int64) output_int64
               [| 12L; 34L; 56L; 78L; 90L |].(myrank);
   let ia = Array.make (3 * size) 0 in
   test_gather "int array"
@@ -290,11 +394,12 @@ let _ =
               (fun d r c -> gather_float_array d fa r c; fa) 
               output_float_array output_float_array
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
-  let ba = makebigarray Complex32 (3 * size) Complex.zero in
-  test_gather "bigarray(Complex32)"
-              (fun d r c -> gather_bigarray d ba r c; ba)
-              (output_bigarray output_complex) (output_bigarray output_complex)
-              (tobigarray Complex32
+  let ba = makebigarray1 Complex32 Fortran_layout (3 * size) Complex.zero in
+  test_gather "bigarray1(Complex32)"
+              (fun d r c -> gather_bigarray1 d ba r c; ba)
+              (output_bigarray1 output_complex)
+              (output_bigarray1 output_complex)
+              (tobigarray1 Complex32 Fortran_layout
                 [| cx (float myrank) 0.25;
                    cx (float myrank) 0.50;
                    cx (float myrank) 0.75 |])
@@ -321,10 +426,10 @@ let _ =
               (fun d c -> allgather_float d fa c; fa) 
               output_float_array output_float
               [| 1.2; 3.4; 5.6; 7.8; 9.1 |].(myrank);
-  let ba = makebigarray Int size 0 in
-  test_allgather "to bigarray(Int)"
-              (fun d c -> allgather_to_bigarray d ba c; ba)
-              (output_bigarray output_int) output_int
+  let ba = makebigarray1 Int C_layout size 0 in
+  test_allgather "to bigarray1(Int)"
+              (fun d c -> allgather_to_bigarray1 d ba c; ba)
+              (output_bigarray1 output_int) output_int
               [| 12; 34; 56; 78; 90 |].(myrank);
   let ia = Array.make (3 * size) 0 in
   test_allgather "int array"
@@ -336,12 +441,12 @@ let _ =
               (fun d c -> allgather_float_array d fa c; fa) 
               output_float_array output_float_array
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
-  let ba = makebigarray Nativeint (3 * size) 0n in
-  test_allgather "bigarray(Nativeint)"
-              (fun d c -> allgather_bigarray d ba c; ba)
-              (output_bigarray output_nativeint)
-              (output_bigarray output_nativeint)
-              (tobigarray Nativeint
+  let ba = makebigarray1 Nativeint C_layout (3 * size) 0n in
+  test_allgather "bigarray1(Nativeint)"
+              (fun d c -> allgather_bigarray1 d ba c; ba)
+              (output_bigarray1 output_nativeint)
+              (output_bigarray1 output_nativeint)
+              (tobigarray1 Nativeint C_layout
                 Nativeint.([| of_int (myrank*10);
                               of_int (myrank*10 + 1);
                               of_int (myrank*10 + 2) |]))
@@ -399,14 +504,22 @@ let _ =
               [Float_max; Float_min; Float_sum; Float_prod]
               output_float_array name_of_float_reduce
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
-  let ba = makebigarray Int8_unsigned 3 0 in
+  let ba = makebigarray1 Int8_unsigned C_layout 3 0 in
   (* note: result of Int_prod is [0 225 0] due to 8-bit precision *)
-  test_reduce "bigarray(Int8_unsigned)"
-              (fun d op r c -> reduce_bigarray d ba op r c; ba)
+  test_reduce "bigarray1(Int8_unsigned)"
+              (fun d op r c -> reduce_bigarray1 d ba op r c; ba)
               [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
-              (output_bigarray output_int) name_of_int_reduce
-              (tobigarray Int8_unsigned
-                [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |])
+              (output_bigarray1 output_int) name_of_int_reduce
+              (tobigarray1 Int8_unsigned C_layout
+                [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |]);
+  let ba = makebigarray2 Int16_unsigned C_layout 2 3 0 in
+  test_reduce "bigarray2(Int16_unsigned)"
+              (fun d op r c -> reduce_bigarray2 d ba op r c; ba)
+              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
+              (output_bigarray2 output_int) name_of_int_reduce
+              (tobigarray2 Int16_unsigned C_layout
+                [| [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
+                   [| myrank * 20; myrank * 20 + 1; myrank * 20 + 2 |] |])
 
 (* Reduce all *)
 
@@ -439,12 +552,12 @@ let _ =
               Float_sum
               output_float_array
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
-  let ba = makebigarray Complex32 3 Complex.zero in
-  test_reduceall "bigarray(Complex32)"
-              (fun d op c -> allreduce_bigarray d ba op c; ba)
+  let ba = makebigarray1 Complex32 C_layout 3 Complex.zero in
+  test_reduceall "bigarray1(Complex32)"
+              (fun d op c -> allreduce_bigarray1 d ba op c; ba)
               Int_sum
-              (output_bigarray output_complex)
-              (tobigarray Complex32
+              (output_bigarray1 output_complex)
+              (tobigarray1 Complex32 C_layout
                 [| cx (float myrank +. 0.25) (float myrank +. 0.25);
                    cx (float myrank +. 0.50) (float myrank +. 0.50);
                    cx (float myrank +. 0.75) (float myrank +. 0.75) |])
@@ -483,13 +596,13 @@ let _ =
               Float_sum
               output_float_array
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
-  let ba = makebigarray Int32 3 0l in
+  let ba = makebigarray1 Int32 C_layout 3 0l in
   let r = Int32.of_int myrank in
-  test_scan "bigarray(Int32)"
-              (fun d op c -> scan_bigarray d ba op c; ba)
+  test_scan "bigarray1(Int32)"
+              (fun d op c -> scan_bigarray1 d ba op c; ba)
               Int_sum
-              (output_bigarray output_int32)
-              (tobigarray Int32 Int32.(
+              (output_bigarray1 output_int32)
+              (tobigarray1 Int32 C_layout Int32.(
                 [| mul r 10l; add (mul r 10l) 1l; add (mul r 10l) 2l |]))
 
 (* Comm split *)

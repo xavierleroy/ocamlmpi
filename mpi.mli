@@ -21,10 +21,6 @@ exception Error of string
         (* Raised when an operation of the [Mpi] module encounters an error.
            The string argument describes the error. *)
 
-(*** Abbreviations *)
-
-type ('a, 'b) ba1 = ('a, 'b, Bigarray.c_layout) Bigarray.Array1.t
-
 (*** Basic operations on communicators *)
 
 type communicator
@@ -110,8 +106,26 @@ val send_int_array: int array -> rank -> tag -> communicator -> unit
 val receive_int_array: int array -> rank -> tag -> communicator -> unit
 val send_float_array: float array -> rank -> tag -> communicator -> unit
 val receive_float_array: float array -> rank -> tag -> communicator -> unit
-val send_bigarray: ('a, 'b) ba1 -> rank -> tag -> communicator -> unit
-val receive_bigarray: ('a, 'b) ba1 -> rank -> tag -> communicator -> unit
+val send_bigarray:
+  ('a, 'b, 'c) Bigarray.Genarray.t -> rank -> tag -> communicator -> unit
+val send_bigarray0:
+  ('a, 'b, 'c) Bigarray.Array0.t -> rank -> tag -> communicator -> unit
+val send_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t -> rank -> tag -> communicator -> unit
+val send_bigarray2:
+  ('a, 'b, 'c) Bigarray.Array2.t -> rank -> tag -> communicator -> unit
+val send_bigarray3:
+  ('a, 'b, 'c) Bigarray.Array3.t -> rank -> tag -> communicator -> unit
+val receive_bigarray:
+  ('a, 'b, 'c) Bigarray.Genarray.t -> rank -> tag -> communicator -> unit
+val receive_bigarray0:
+  ('a, 'b, 'c) Bigarray.Array0.t -> rank -> tag -> communicator -> unit
+val receive_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t -> rank -> tag -> communicator -> unit
+val receive_bigarray2:
+  ('a, 'b, 'c) Bigarray.Array2.t -> rank -> tag -> communicator -> unit
+val receive_bigarray3:
+  ('a, 'b, 'c) Bigarray.Array3.t -> rank -> tag -> communicator -> unit
         (* Specialized versions of [Mpi.send] and [Mpi.receive]
            for communicating integers, floating-point numbers,
            arrays of integers, arrays of floating-point numbers and
@@ -122,14 +136,19 @@ val receive_bigarray: ('a, 'b) ba1 -> rank -> tag -> communicator -> unit
            meaning as for [Mpi.send].
            The arguments to [Mpi.receive_int] and [Mpi.receive_float]
            have the same meaning as for [Mpi.receive].
-           [Mpi.receive_int_array] and [Mpi.receive_float_array]
+           [Mpi.receive_int_array], [Mpi.receive_float_array] and
+           [Mpi.receive_bigarray*]
            have one extra argument, which is the array in which the data
            of the received message is stored.  The caller is responsible
            for pre-allocating an array large enough to hold the incoming data.
 
            It is an error to send a message using one of the specialized
            [Mpi.send_*] functions and receive it with the generic
-           [Mpi.receive] function, and conversely. *)
+           [Mpi.receive] function, and conversely.
+
+           It is possible to receive a bigarray with different dimensions
+           than those used to send it; only the total number of elements must
+           match. *)
 
 (*** Non-blocking communication *)
 
@@ -203,14 +222,23 @@ val broadcast_int: int -> rank -> communicator -> int
 val broadcast_float: float -> rank -> communicator -> float
 val broadcast_int_array: int array -> rank -> communicator -> unit
 val broadcast_float_array: float array -> rank -> communicator -> unit
-val broadcast_bigarray: ('a, 'b) ba1 -> rank -> communicator -> unit
+val broadcast_bigarray:
+  ('a, 'b, 'c) Bigarray.Genarray.t -> rank -> communicator -> unit
+val broadcast_bigarray0:
+  ('a, 'b, 'c) Bigarray.Array0.t -> rank -> communicator -> unit
+val broadcast_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t -> rank -> communicator -> unit
+val broadcast_bigarray2:
+  ('a, 'b, 'c) Bigarray.Array2.t -> rank -> communicator -> unit
+val broadcast_bigarray3:
+  ('a, 'b, 'c) Bigarray.Array3.t -> rank -> communicator -> unit
         (* Specialized versions of [Mpi.broadcast] for integers, floats,
            arrays of integers, arrays of floats and bigarrays.  For
            [Mpi.broadcast_int] and [Mpi.broadcast_float], the broadcast
            value is returned as result, and the first argument is significant
            only at the root node.
            For [Mpi.broadcast_int_array], [Mpi.broadcast_float_array] and
-           [Mpi.broadcast_bigarray], the broadcast value is stored in the
+           [Mpi.broadcast_bigarray*], the broadcast value is stored in the
            array passed as first argument; thus, the first argument is
            significant at all nodes. *)
 
@@ -224,14 +252,25 @@ val scatter: 'a array -> rank -> communicator -> 'a
            at other nodes. *)
 val scatter_int: int array -> rank -> communicator -> int
 val scatter_float: float array -> rank -> communicator -> float
-val scatter_from_bigarray: ('a, 'b) ba1 -> rank -> communicator -> 'a
+val scatter_from_bigarray:
+  ('a, 'b, 'c) Bigarray.Genarray.t -> rank -> communicator -> 'a
+val scatter_from_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t -> rank -> communicator -> 'a
+val scatter_from_bigarray2:
+  ('a, 'b, 'c) Bigarray.Array2.t -> rank -> communicator -> 'a
+val scatter_from_bigarray3:
+  ('a, 'b, 'c) Bigarray.Array3.t -> rank -> communicator -> 'a
         (* Specialized versions of [Mpi.scatter] for integers, floats and
            values from bigarrays. *)
 val scatter_int_array: int array -> int array -> rank -> communicator -> unit
 val scatter_float_array:
   float array -> float array -> rank -> communicator -> unit
 val scatter_bigarray:
-  ('a, 'b) ba1 -> ('a, 'b) ba1 -> rank -> communicator -> unit
+  ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
+  -> rank -> communicator -> unit
+val scatter_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
+  -> rank -> communicator -> unit
         (* Specialized versions of [Mpi.scatter] for arrays of integers,
            arrays of floats and bigarrays.
            [Mpi.scatter_int_array src dst root comm]
@@ -239,7 +278,10 @@ val scatter_bigarray:
            chunks of size [Array.length dst], and sends the chunks to
            each node, storing them into array [dst] at each node.
            The [src] argument is significant only at node [root].
-           [Mpi.scatter_float_array] and [Mpi.scatter_bigarray] are similar. *)
+           [Mpi.scatter_float_array] and [Mpi.scatter_bigarray*] are similar.
+           Use the [Bigarray.genarray_of_array*] functions to, for example,
+           scatter from [n] dimensions to [n-1] dimensions. In any case,
+           only the total number of elements matters. *)
 
 (** Gather *)
 val gather: 'a -> rank -> communicator -> 'a array
@@ -251,32 +293,57 @@ val gather: 'a -> rank -> communicator -> 'a array
            the empty array [[||]] is returned. *)
 val gather_int: int -> int array -> rank -> communicator -> unit
 val gather_float: float -> float array -> rank -> communicator -> unit
-val gather_to_bigarray: 'a -> ('a, 'b) ba1 -> rank -> communicator -> unit
+val gather_to_bigarray:
+  'a -> ('a, 'b, 'c) Bigarray.Genarray.t -> rank -> communicator -> unit
+val gather_to_bigarray1:
+  'a -> ('a, 'b, 'c) Bigarray.Array1.t -> rank -> communicator -> unit
+val gather_to_bigarray2:
+  'a -> ('a, 'b, 'c) Bigarray.Array2.t -> rank -> communicator -> unit
+val gather_to_bigarray3:
+  'a -> ('a, 'b, 'c) Bigarray.Array3.t -> rank -> communicator -> unit
         (* Specialized versions of [Mpi.gather] for integers, floats and
            values to bigarrays. *)
 val gather_int_array: int array -> int array -> rank -> communicator -> unit
 val gather_float_array:
   float array -> float array -> rank -> communicator -> unit
 val gather_bigarray:
-  ('a, 'b) ba1 -> ('a, 'b) ba1 -> rank -> communicator -> unit
+  ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
+  -> rank -> communicator -> unit
+val gather_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
+  -> rank -> communicator -> unit
         (* Specialized versions of [Mpi.gather] for arrays of integers,
            arrays of floats and bigarrays.
            [Mpi.gather_int_array src dst root comm]
            sends the arrays [src] at each node to the node [root].
            At node [root], the arrays are concatenated and stored in the
            argument [dst].  [dst] is significant only at node [root].
-           [Mpi.gather_float_array] and [Mpi.gather_bigarray] are similar. *)
+           [Mpi.gather_float_array] and [Mpi.gather_bigarray*] are similar.
+           Use the [Bigarray.genarray_of_array*] functions to, for example,
+           gather from [n-1] dimensions to [n] dimensions. In any case,
+           only the total number of elements matters. *)
 
 (** Gather to all *)
 val allgather: 'a -> communicator -> 'a array
 val allgather_int: int -> int array -> communicator -> unit
 val allgather_float: float -> float array -> communicator -> unit
-val allgather_to_bigarray: 'a -> ('a, 'b) ba1 -> communicator -> unit
+val allgather_to_bigarray:
+  'a -> ('a, 'b, 'c) Bigarray.Genarray.t -> communicator -> unit
+val allgather_to_bigarray1:
+  'a -> ('a, 'b, 'c) Bigarray.Array1.t -> communicator -> unit
+val allgather_to_bigarray2:
+  'a -> ('a, 'b, 'c) Bigarray.Array2.t -> communicator -> unit
+val allgather_to_bigarray3:
+  'a -> ('a, 'b, 'c) Bigarray.Array3.t -> communicator -> unit
 val allgather_int_array: int array -> int array -> communicator -> unit
 val allgather_float_array:
   float array -> float array -> communicator -> unit
 val allgather_bigarray:
-  ('a, 'b) ba1 -> ('a, 'b) ba1 -> communicator -> unit
+  ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
+  -> communicator -> unit
+val allgather_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
+  -> communicator -> unit
         (* The [Mpi.allgather*] functions behave like the corresponding
            [Mpi.gather*] functions, except that the result of the gather
            operation is available at all nodes, not only at the root node.
@@ -309,12 +376,25 @@ val reduce_int_array:
 val reduce_float_array:
   float array -> float array -> floatop -> rank -> communicator -> unit
 val reduce_bigarray:
-  ('a, 'b) ba1 -> ('a, 'b) ba1 -> intop -> rank -> communicator -> unit
+  ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
+  -> intop -> rank -> communicator -> unit
+val reduce_bigarray0:
+  ('a, 'b, 'c) Bigarray.Array0.t  -> ('a, 'b, 'c) Bigarray.Array0.t
+  -> intop -> rank -> communicator -> unit
+val reduce_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
+  -> intop -> rank -> communicator -> unit
+val reduce_bigarray2:
+  ('a, 'b, 'c) Bigarray.Array2.t  -> ('a, 'b, 'c) Bigarray.Array2.t
+  -> intop -> rank -> communicator -> unit
+val reduce_bigarray3:
+  ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
+  -> intop -> rank -> communicator -> unit
         (* [Mpi.reduce_int_array d res op root comm] computes 
            [Array.length d] reductions by operation [op] simultaneously.
            For every [i], the values of [d.(i)] at every node
            are combined using [op] and the result is stored into [dst.(i)]
-           at node [root]. For [Mpi.reduce_bigarray] applied to an array
+           at node [root]. For [Mpi.reduce_bigarray*] applied to an array
            of floating-point values, an exception is raised for the
            [Int_land], [Int_lor] and [Int_xor] operations and the others
            are interpreted as floating-point operations. *)
@@ -327,11 +407,24 @@ val allreduce_int_array:
 val allreduce_float_array:
   float array -> float array -> floatop -> communicator -> unit
 val allreduce_bigarray:
-  ('a, 'b) ba1 -> ('a, 'b) ba1 -> intop -> communicator -> unit
+  ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
+  -> intop -> communicator -> unit
+val allreduce_bigarray0:
+  ('a, 'b, 'c) Bigarray.Array0.t  -> ('a, 'b, 'c) Bigarray.Array0.t
+  -> intop -> communicator -> unit
+val allreduce_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
+  -> intop -> communicator -> unit
+val allreduce_bigarray2:
+  ('a, 'b, 'c) Bigarray.Array2.t  -> ('a, 'b, 'c) Bigarray.Array2.t
+  -> intop -> communicator -> unit
+val allreduce_bigarray3:
+  ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
+  -> intop -> communicator -> unit
         (* The [Mpi.allreduce_*] operations are similar to the
            corresponding [Mpi.reduce_*] operations, except that the result
            of the reduction is made available at all nodes.
-           For [Mpi.reduce_bigarray] applied to an array of floating-point
+           For [Mpi.allreduce_bigarray*] applied to an array of floating-point
            values, an exception is raised for the [Int_land], [Int_lor]
            and [Int_xor] operations and the others are interpreted as
            floating-point operations. *)
@@ -348,11 +441,24 @@ val scan_int_array: int array -> int array -> intop -> communicator -> unit
 val scan_float_array:
   float array -> float array -> floatop -> communicator -> unit
 val scan_bigarray:
-  ('a, 'b) ba1 -> ('a, 'b) ba1 -> intop -> communicator -> unit
+  ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
+  -> intop -> communicator -> unit
+val scan_bigarray0:
+  ('a, 'b, 'c) Bigarray.Array0.t  -> ('a, 'b, 'c) Bigarray.Array0.t
+  -> intop -> communicator -> unit
+val scan_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
+  -> intop -> communicator -> unit
+val scan_bigarray2:
+  ('a, 'b, 'c) Bigarray.Array2.t  -> ('a, 'b, 'c) Bigarray.Array2.t
+  -> intop -> communicator -> unit
+val scan_bigarray3:
+  ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
+  -> intop -> communicator -> unit
         (* Same as [Mpi.scan_int] and [Mpi.scan_float], but perform several
            scanning operations on the elements of the input array (first
            argument).  The result is stored in the array passed as second
-           argument at the root node. For [Mpi.reduce_bigarray] applied to
+           argument at the root node. For [Mpi.scan_bigarray*] applied to
            an array of floating-point values, an exception is raised for
            the [Int_land], [Int_lor] and [Int_xor] operations and the
            others are interpreted as floating-point operations. *)
