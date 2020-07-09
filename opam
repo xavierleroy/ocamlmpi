@@ -1,12 +1,11 @@
-opam-version: "1.2"
+opam-version: "2.0"
 version: "1.03"
 maintainer: "xavier.leroy@inria.fr"
 authors: ["Xavier Leroy"]
 homepage: "https://github.com/xavierleroy/ocamlmpi"
 bug-reports: "https://github.com/xavierleroy/ocamlmpi/issues"
 dev-repo: "git://github.com/xavierleroy/ocamlmpi"
-license: "LGPL"
-
+license: "LGPL-2 with OCaml linking exception"
 build: [
   [make "all" "opt"
     "MPIINCDIR=%{conf-mpi:includedir}%"
@@ -18,12 +17,9 @@ build: [
 install: [[make "install"]]
 remove: [[make "uninstall"]]
 depends: [
-  "conf-mpi"
-  "ocamlfind"
+  "ocaml" {>= "4.03.0"}
   "base-bigarray"
+  "conf-mpi"
+  "ocamlfind" {build}
 ]
-depexts: [
-  [["debian"] ["mpi-default-dev"]]
-  [["ubuntu"] ["mpi-default-dev"]]
-]
-available: [ ocaml-version >= "4.02.3" ]
+synopsis: "OCaml binding to the Message Passing Interface (MPI)"
