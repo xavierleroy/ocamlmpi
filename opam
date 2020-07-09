@@ -17,7 +17,11 @@ build: [
 ]
 install: [[make "install"]]
 remove: [[make "uninstall"]]
-depends: ["conf-mpi" "ocamlfind"]
+depends: [
+  "conf-mpi"
+  "ocamlfind"
+  "base-bigarray"
+]
 depexts: [
   [["debian"] ["mpi-default-dev"]]
   [["ubuntu"] ["mpi-default-dev"]]
