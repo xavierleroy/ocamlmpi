@@ -388,6 +388,86 @@ value caml_mpi_allgather_bigarray(value data, value result, value comm)
   return Val_unit;
 }
 
+/* All to all */
+
+value caml_mpi_alltoall(value sendbuf, value sendlengths,
+                        value recvbuf, value recvlengths,
+                        value comm)
+{
+  int * recvcounts, * recvdispls;
+  int * sendcounts, * senddispls;
+
+  caml_mpi_counts_displs(sendlengths, &sendcounts, &senddispls);
+  caml_mpi_counts_displs(recvlengths, &recvcounts, &recvdispls);
+  MPI_Alltoallv(String_val(sendbuf), sendcounts, senddispls, MPI_BYTE,
+                Bp_val(recvbuf), recvcounts, recvdispls, MPI_BYTE,
+                Comm_val(comm));
+  caml_stat_free(recvcounts);
+  caml_stat_free(recvdispls);
+  caml_stat_free(sendcounts);
+  caml_stat_free(senddispls);
+  return Val_unit;
+}
+
+value caml_mpi_alltoall_intarray(value data, value result, value comm)
+{
+  mlsize_t len = Wosize_val(data);
+  MPI_Comm c = Comm_val(comm);
+  int csize, count;
+  void* sendbuf = &Field(data, 0);
+  void* recvbuf = &Field(result, 0);
+
+  MPI_Comm_size(c, &csize);
+  count = len / csize;
+  if (len % csize != 0)
+    caml_mpi_raise_error("Mpi.alltoall_intarray: incorrect array size");
+
+  if (sendbuf == recvbuf) sendbuf = MPI_IN_PLACE;
+
+  MPI_Alltoall(sendbuf, count, MPI_LONG, recvbuf, count, MPI_LONG, c);
+  return Val_unit;
+}
+
+value caml_mpi_alltoall_floatarray(value data, value result, value comm)
+{
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  mlsize_t reslen = Wosize_val(result) / Double_wosize;
+  double * d = caml_mpi_input_floatarray(data, len);
+  double * res = caml_mpi_output_floatarray(result, reslen);
+  MPI_Comm c = Comm_val(comm);
+  int csize, count;
+
+  MPI_Comm_size(c, &csize);
+  count = len / csize;
+  if (len % csize != 0)
+    caml_mpi_raise_error("Mpi.alltoall_floatarray: incorrect array size");
+
+  MPI_Alltoall(d, count, MPI_DOUBLE, res, count, MPI_DOUBLE, c);
+  caml_mpi_free_floatarray(d);
+  caml_mpi_commit_floatarray(res, result, reslen);
+  return Val_unit;
+}
+
+value caml_mpi_alltoall_bigarray(value data, value result, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  MPI_Comm c = Comm_val(comm);
+  int csize, count;
+  mlsize_t dlen = caml_ba_num_elts(d);
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[r->flags & CAML_BA_KIND_MASK];
+
+  MPI_Comm_size(c, &csize);
+  if (caml_ba_num_elts(r) != dlen)
+    caml_mpi_raise_error("Mpi.alltoall_bigarray: array size mismatch");
+  count = dlen / csize;
+  if (dlen % csize != 0)
+    caml_mpi_raise_error("Mpi.alltoall_bigarray: incorrect array size");
+
+  MPI_Alltoall(d->data, count, dt, r->data, count, dt, c);
+  return Val_unit;
+}
+
 /* Reduce */
 
 static MPI_Op reduce_intop[] =

@@ -522,6 +522,79 @@ external allgather_bigarray:
 let allgather_bigarray1 s d =
   allgather_bigarray (Bigarray.(genarray_of_array1 s))
                      (Bigarray.(genarray_of_array1 d))
+
+(* Alltoall *)
+
+external alltoall_int_array:
+  int array -> int array -> communicator -> unit
+  = "caml_mpi_alltoall_intarray"
+
+external alltoall_bytes:
+  bytes -> int array -> bytes -> int array -> communicator -> unit
+  = "caml_mpi_alltoall"
+
+let alltoall data comm =
+  let nprocs = comm_size comm in
+  (* Check correct length for array *)
+  if Array.length data <> nprocs
+  then mpi_error "Mpi.alltoall: wrong array size";
+  (* Marshal data to bytes *)
+  let send_buffers =
+    Array.map (fun d -> Marshal.to_bytes d [Marshal.Closures]) data in
+  (* Determine lengths of bytes *)
+  let send_lengths = Array.map Bytes.length send_buffers in
+  let recv_lengths = Array.make nprocs 0 in
+  (* Swap lengths between processes *)
+  alltoall_int_array send_lengths recv_lengths comm;
+  (* Build single buffer with all data *)
+  let total_sendlen = Array.fold_left (+) 0 send_lengths in
+  let send_buffer = Bytes.create total_sendlen in
+  let pos = ref 0 in
+  for i = 0 to nprocs - 1 do
+    Bytes.blit send_buffers.(i) 0 send_buffer !pos send_lengths.(i);
+    pos := !pos + send_lengths.(i)
+  done;
+  (* Allocate receive buffer big enough to hold all data *)
+  let total_recvlen = Array.fold_left (+) 0 recv_lengths in
+  let recv_buffer = Bytes.create total_recvlen in
+  (* Send and receive *)
+  alltoall_bytes send_buffer send_lengths recv_buffer recv_lengths comm;
+  (* Build array of results *)
+  let res0 = Marshal.from_bytes recv_buffer 0 in
+  let res = Array.make nprocs res0 in
+  let pos = ref 0 in
+  for i = 1 to nprocs - 1 do
+    pos := !pos + recv_lengths.(i - 1);
+    res.(i) <- Marshal.from_bytes recv_buffer !pos
+  done;
+  res
+
+let alltoall_int_array src dst comm =
+  if Array.length src <> Array.length dst
+  then mpi_error "Mpi.alltoall_int_array: array size mismatch"
+  else alltoall_int_array src dst comm
+external alltoall_float_array:
+  float array -> float array -> communicator -> unit
+  = "caml_mpi_alltoall_floatarray"
+let alltoall_float_array src dst comm =
+  if Array.length src <> Array.length dst
+  then mpi_error "Mpi.alltoall_float_array: array size mismatch"
+  else alltoall_float_array src dst comm
+external alltoall_bigarray:
+  ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
+  -> communicator -> unit
+  = "caml_mpi_alltoall_bigarray"
+
+let alltoall_bigarray1 s d =
+  alltoall_bigarray (Bigarray.(genarray_of_array1 s))
+                    (Bigarray.(genarray_of_array1 d))
+let alltoall_bigarray2 s d =
+  alltoall_bigarray (Bigarray.(genarray_of_array2 s))
+                    (Bigarray.(genarray_of_array2 d))
+let alltoall_bigarray3 s d =
+  alltoall_bigarray (Bigarray.(genarray_of_array3 s))
+                    (Bigarray.(genarray_of_array3 d))
+
 (* Reduce *)
 
 type intop =

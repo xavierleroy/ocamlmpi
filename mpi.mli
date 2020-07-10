@@ -350,6 +350,29 @@ val allgather_bigarray1:
            In other terms, [Mpi.allgather] is equivalent to [Mpi.gather]
            at root [r] followed by a broadcast of the result from node [r]. *)
 
+(** All to all *)
+val alltoall: 'a array -> communicator -> 'a array
+val alltoall_int_array: int array -> int array -> communicator -> unit
+val alltoall_float_array: float array -> float array -> communicator -> unit
+val alltoall_bigarray:
+  ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
+  -> communicator -> unit
+val alltoall_bigarray1:
+  ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
+  -> communicator -> unit
+val alltoall_bigarray2:
+  ('a, 'b, 'c) Bigarray.Array2.t  -> ('a, 'b, 'c) Bigarray.Array2.t
+  -> communicator -> unit
+val alltoall_bigarray3:
+  ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
+  -> communicator -> unit
+        (* Using the [Mpi.alltoall*] functions, each process effectively does
+           an [Mpi.scatter*] followed by an [Mpi.gather*]. They can also be
+           seen as an extension to [Mpi.allgather*] where each process sends
+           distinct data to each of the receivers.
+           Both send and receive arrays must have the same size at all
+           nodes. *)
+
 (** Reduce *)
 type intop =
   Int_max | Int_min | Int_sum | Int_prod | Int_land | Int_lor | Int_xor

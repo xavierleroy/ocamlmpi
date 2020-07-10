@@ -451,6 +451,70 @@ let _ =
                               of_int (myrank*10 + 1);
                               of_int (myrank*10 + 2) |]))
 
+(* Alltoall *)
+
+let test_alltoall msg alltoallfun printfun data =
+  printf "%d: %s alltoall -  sending %a" myrank msg printfun data;
+  print_newline();
+  let res = alltoallfun data comm_world in
+  printf "%d: %s alltoall - received %a" myrank msg printfun res;
+  print_newline();
+  barrier comm_world
+
+let _ =
+  test_alltoall "generic" alltoall (output_array output_string)
+    ([|
+      [| "Un";      "chèque";  "kitch";  "est";      "chique" |];
+      [| "Six";     "scies";   "scient"; "six";      "cigares" |];
+      [| "Elle";    "chausse"; "ses";    "souliers"; "secs" |];
+      [| "Je";      "bois";    "aux";    "trois";    "oies" |];
+      [| "L'œuvre"; "pieuse";  "d'une";  "pieuvre";  "heureuse" |];
+    |]).(myrank);
+  test_alltoall "int"
+    (fun d c -> alltoall_int_array d d c; d)
+    output_int_array
+    ([|
+      [|  0;  1;  2;  3;  4;  5;  6;  7;  8;  9 |];
+      [| 10; 11; 12; 13; 14; 15; 16; 17; 18; 19 |];
+      [| 20; 21; 22; 23; 24; 25; 26; 27; 28; 29 |];
+      [| 30; 31; 32; 33; 34; 35; 36; 37; 38; 39 |];
+      [| 40; 41; 42; 43; 44; 45; 46; 47; 48; 49 |];
+    |]).(myrank);
+  let a = Array.make 5 0.0 in
+  test_alltoall "float"
+    (fun d c -> alltoall_float_array d a c; a)
+    output_float_array
+    ([|
+      [|  1.2;  3.4;  5.6;  7.8;  9.1 |];
+      [| 11.2; 13.4; 15.6; 17.8; 19.1 |];
+      [| 21.2; 23.4; 25.6; 27.8; 29.1 |];
+      [| 31.2; 33.4; 35.6; 37.8; 39.1 |];
+      [| 41.2; 43.4; 45.6; 47.8; 49.1 |];
+    |]).(myrank);
+  let ba = makebigarray1 Char Fortran_layout 5 '@' in
+  test_alltoall "bigarray1(Char)"
+               (fun d c -> alltoall_bigarray1 d ba c; ba)
+               (output_bigarray1 output_char)
+               (tobigarray1 Char Fortran_layout
+                 ([|
+                   [| 'S'; 'A'; 'T'; 'O'; 'R' |];
+                   [| 'a'; 'r'; 'e'; 'p'; 'o' |];
+                   [| 'T'; 'E'; 'N'; 'E'; 'T' |];
+                   [| 'o'; 'p'; 'e'; 'r'; 'a' |];
+                   [| 'R'; 'O'; 'T'; 'A'; 'S' |];
+                 |]).(myrank));
+  let ba = makebigarray2 Int16_unsigned C_layout 5 2 0 in
+  test_alltoall "bigarray2(Int16_unsigned)"
+               (fun d c -> alltoall_bigarray2 d ba c; ba)
+               (output_bigarray2 output_int)
+               (tobigarray2 Int16_unsigned C_layout ([|
+     [| [| 10; 11 |]; [| 12; 13 |]; [| 14; 15 |]; [| 16; 17 |]; [| 18; 19 |] |];
+     [| [| 20; 21 |]; [| 22; 23 |]; [| 24; 25 |]; [| 26; 27 |]; [| 28; 29 |] |];
+     [| [| 30; 31 |]; [| 32; 33 |]; [| 34; 35 |]; [| 36; 37 |]; [| 38; 39 |] |];
+     [| [| 40; 41 |]; [| 42; 43 |]; [| 44; 45 |]; [| 46; 47 |]; [| 48; 49 |] |];
+     [| [| 50; 51 |]; [| 52; 53 |]; [| 54; 55 |]; [| 56; 57 |]; [| 58; 59 |] |];
+                 |]).(myrank))
+
 (* Reduce *)
 
 let name_of_int_reduce = function
