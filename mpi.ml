@@ -617,15 +617,6 @@ type _ op =
   | Float_sum  : [< `Float ] op
   | Float_prod : [< `Float ] op
 
-(* Only works for 4.08.0 <= OCaml *)
-let is_int_only_op (type t) (x : t op) =
-  match x with
-  | Max | Min | Sum | Prod -> false
-  | Land | Lor | Xor -> true
-  | Float_max | Float_min | Float_sum | Float_prod -> false
-  | Int_max | Int_min | Int_sum | Int_prod
-  | Int_land | Int_lor | Int_xor -> true
-
 external reduce_int:
   int -> [`Int] op -> rank -> communicator -> int
     = "caml_mpi_reduce_int"
@@ -653,11 +644,6 @@ external reduce_bigarray:
     ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
     -> 'any op -> rank -> communicator -> unit
     = "caml_mpi_reduce_bigarray"
-
-let reduce_bigarray src dst op rank comm =
-  if ba_kind_is_float (Bigarray.Genarray.kind src) && is_int_only_op op
-  then mpi_error "Mpi.reduce_bigarray: invalid floating-point operation"
-  else reduce_bigarray src dst op rank comm
 
 let reduce_bigarray0 s d = reduce_bigarray (Bigarray.(genarray_of_array0 s))
                                            (Bigarray.(genarray_of_array0 d))
@@ -696,10 +682,6 @@ external allreduce_bigarray:
     ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
     -> 'any op -> communicator -> unit
     = "caml_mpi_allreduce_bigarray"
-let allreduce_bigarray src dst op comm =
-  if ba_kind_is_float (Bigarray.Genarray.kind src) && is_int_only_op op
-  then mpi_error "Mpi.allreduce_bigarray: invalid floating-point operation"
-  else allreduce_bigarray src dst op comm
 
 let allreduce_bigarray0 s d =
   allreduce_bigarray (Bigarray.(genarray_of_array0 s))
@@ -743,10 +725,6 @@ external scan_bigarray:
     ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
     -> 'any op -> communicator -> unit
     = "caml_mpi_scan_bigarray"
-let scan_bigarray src dst op comm =
-  if ba_kind_is_float (Bigarray.Genarray.kind src) && is_int_only_op op
-  then mpi_error "Mpi.scan_bigarray: invalid floating-point operation"
-  else scan_bigarray src dst op comm
 
 let scan_bigarray0 s d = scan_bigarray (Bigarray.(genarray_of_array0 s))
                                        (Bigarray.(genarray_of_array0 d))
