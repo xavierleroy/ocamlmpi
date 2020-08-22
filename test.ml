@@ -117,7 +117,9 @@ let output_array fn o a =
 let output_int_array = output_array output_int
 let output_float_array = output_array output_float
 let loop_bounds (type t) (l : t Bigarray.layout) n =
-  match l with C_layout -> 0, n - 1 | Fortran_layout -> 1, n
+  match l with
+    Bigarray.C_layout -> 0, n - 1
+  | Bigarray.Fortran_layout -> 1, n
 let bigarray1_bounds (type t) (a : ('a, 'b, t) Bigarray.Array1.t) =
   loop_bounds (Bigarray.Array1.layout a) (Bigarray.Array1.dim a)
 let output_bigarray0 fn o a =
@@ -147,14 +149,14 @@ let output_bigarray2 (type t) fn o (a : ('a, 'b, t) Bigarray.Array2.t) =
   let n1, n2 = Bigarray.Array2.(dim1 a, dim2 a) in
   output_string o "[ ";
   (match Bigarray.Array2.layout a with
-   | C_layout ->
+   | Bigarray.C_layout ->
        for i = 0 to n1 - 1 do
          if i > 0 then output_string o "; ";
          for j = 0 to n2 - 1 do
            fn o a.{i,j}; output_char o ' '
          done
        done;
-   | Fortran_layout ->
+   | Bigarray.Fortran_layout ->
        for j = 1 to n2 do
          if j > 1 then output_string o "; ";
          for i = 1 to n1 do
