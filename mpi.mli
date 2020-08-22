@@ -374,19 +374,34 @@ val alltoall_bigarray3:
            nodes. *)
 
 (** Reduce *)
-type intop =
-  Int_max | Int_min | Int_sum | Int_prod | Int_land | Int_lor | Int_xor
-type floatop =
-  Float_max | Float_min | Float_sum | Float_prod
-        (* The operations that can be performed by a reduce or scan,
-           on integers and floats respectively. [max] and [min]
-           are maximum and minimum; [sum] and [prod]
-           are summation ([+]) and product ([*]).
-           [land]. [lor] and [lxor] are logical (bit-per-bit) and,
-           or and exclusive-or. *)
+type _ op =
+    Max  : [< `Int | `Float ] op
+  | Min  : [< `Int | `Float ] op
+  | Sum  : [< `Int | `Float ] op
+  | Prod : [< `Int | `Float ] op
+  | Land : [< `Int ] op
+  | Lor  : [< `Int ] op
+  | Xor  : [< `Int ] op
+  | Int_max  : [< `Int ] op [@deprecated]
+  | Int_min  : [< `Int ] op [@deprecated]
+  | Int_sum  : [< `Int ] op [@deprecated]
+  | Int_prod : [< `Int ] op [@deprecated]
+  | Int_land : [< `Int ] op [@deprecated]
+  | Int_lor  : [< `Int ] op [@deprecated]
+  | Int_xor  : [< `Int ] op [@deprecated]
+  | Float_max  : [< `Float ] op [@deprecated]
+  | Float_min  : [< `Float ] op [@deprecated]
+  | Float_sum  : [< `Float ] op [@deprecated]
+  | Float_prod : [< `Float ] op [@deprecated]
+  (* The operations that can be performed by a reduce or scan; some of
+     them are only valid for integers. [Max] and [Min]
+     are maximum and minimum; [Sum] and [Prod]
+     are summation ([+]) and product ([*]).
+     [Land], [Lor] and [Xor] are logical (bit-per-bit) and,
+     or and exclusive-or. *)
 
-val reduce_int: int -> intop -> rank -> communicator -> int
-val reduce_float: float -> floatop -> rank -> communicator -> float
+val reduce_int: int -> [`Int] op -> rank -> communicator -> int
+val reduce_float: float -> [`Float] op -> rank -> communicator -> float
         (* [Mpi.reduce_int d op root comm] computes the value of
            [d0 op d1 op ... op dN], where [d0 ... dN] are the values of
            the [d] argument at every node in [comm].  The result value
@@ -395,24 +410,24 @@ val reduce_float: float -> floatop -> rank -> communicator -> float
            except for the use of floating-point operations instead of
            integer operations. *)
 val reduce_int_array:
-  int array -> int array -> intop -> rank -> communicator -> unit
+  int array -> int array -> [`Int] op -> rank -> communicator -> unit
 val reduce_float_array:
-  float array -> float array -> floatop -> rank -> communicator -> unit
+  float array -> float array -> [`Float] op -> rank -> communicator -> unit
 val reduce_bigarray:
   ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
-  -> intop -> rank -> communicator -> unit
+  -> 'any op -> rank -> communicator -> unit
 val reduce_bigarray0:
   ('a, 'b, 'c) Bigarray.Array0.t  -> ('a, 'b, 'c) Bigarray.Array0.t
-  -> intop -> rank -> communicator -> unit
+  -> 'any op -> rank -> communicator -> unit
 val reduce_bigarray1:
   ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
-  -> intop -> rank -> communicator -> unit
+  -> 'any op -> rank -> communicator -> unit
 val reduce_bigarray2:
   ('a, 'b, 'c) Bigarray.Array2.t  -> ('a, 'b, 'c) Bigarray.Array2.t
-  -> intop -> rank -> communicator -> unit
+  -> 'any op -> rank -> communicator -> unit
 val reduce_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
-  -> intop -> rank -> communicator -> unit
+  -> 'any op -> rank -> communicator -> unit
         (* [Mpi.reduce_int_array d res op root comm] computes 
            [Array.length d] reductions by operation [op] simultaneously.
            For every [i], the values of [d.(i)] at every node
@@ -423,27 +438,27 @@ val reduce_bigarray3:
            are interpreted as floating-point operations. *)
 
 (** Reduce to all *)
-val allreduce_int: int -> intop -> communicator -> int
-val allreduce_float: float -> floatop -> communicator -> float
+val allreduce_int: int -> [`Int] op -> communicator -> int
+val allreduce_float: float -> [`Float] op -> communicator -> float
 val allreduce_int_array:
-  int array -> int array -> intop -> communicator -> unit
+  int array -> int array -> [`Int] op -> communicator -> unit
 val allreduce_float_array:
-  float array -> float array -> floatop -> communicator -> unit
+  float array -> float array -> [`Float] op -> communicator -> unit
 val allreduce_bigarray:
   ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
 val allreduce_bigarray0:
   ('a, 'b, 'c) Bigarray.Array0.t  -> ('a, 'b, 'c) Bigarray.Array0.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
 val allreduce_bigarray1:
   ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
 val allreduce_bigarray2:
   ('a, 'b, 'c) Bigarray.Array2.t  -> ('a, 'b, 'c) Bigarray.Array2.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
 val allreduce_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
         (* The [Mpi.allreduce_*] operations are similar to the
            corresponding [Mpi.reduce_*] operations, except that the result
            of the reduction is made available at all nodes.
@@ -453,31 +468,32 @@ val allreduce_bigarray3:
            floating-point operations. *)
 
 (** Scan *)
-val scan_int: int -> intop -> communicator -> int
-val scan_float: float -> floatop -> communicator -> float
+val scan_int: int -> [`Int] op -> communicator -> int
+val scan_float: float -> [`Float] op -> communicator -> float
         (* [Mpi.scan_int d res op comm] performs a scan operation over
            the integers [d] at every node.  Let [d0 ... dN] be the
            values of the [d] at every node in [comm].  At node with rank [R],
            [Mpi.scan_int d res op comm] returns [d0 op ... op dR].
            [Mpi.scan_float] is similar. *)
-val scan_int_array: int array -> int array -> intop -> communicator -> unit
+val scan_int_array:
+  int array -> int array -> [`Int] op -> communicator -> unit
 val scan_float_array:
-  float array -> float array -> floatop -> communicator -> unit
+  float array -> float array -> [`Float] op -> communicator -> unit
 val scan_bigarray:
   ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
 val scan_bigarray0:
   ('a, 'b, 'c) Bigarray.Array0.t  -> ('a, 'b, 'c) Bigarray.Array0.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
 val scan_bigarray1:
   ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
 val scan_bigarray2:
   ('a, 'b, 'c) Bigarray.Array2.t  -> ('a, 'b, 'c) Bigarray.Array2.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
 val scan_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
-  -> intop -> communicator -> unit
+  -> 'any op -> communicator -> unit
         (* Same as [Mpi.scan_int] and [Mpi.scan_float], but perform several
            scanning operations on the elements of the input array (first
            argument).  The result is stored in the array passed as second

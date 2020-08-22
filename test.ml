@@ -517,17 +517,23 @@ let _ =
 
 (* Reduce *)
 
-let name_of_int_reduce = function
-    Int_max -> "Int_max"
+let name_of_reduce_op (type t) (x : t op) =
+  match x with
+    Max -> "Max"
+  | Min -> "Min"
+  | Sum -> "Sum"
+  | Prod -> "Prod"
+  | Land -> "Land"
+  | Lor -> "Int_lor"
+  | Xor -> "Int_xor"
+  | Int_max -> "Int_max"
   | Int_min -> "Int_min"
   | Int_sum -> "Int_sum"
   | Int_prod -> "Int_prod"
   | Int_land -> "Int_land"
   | Int_lor -> "Int_lor"
   | Int_xor -> "Int_xor"
-
-let name_of_float_reduce = function
-    Float_max -> "Float_max"
+  | Float_max -> "Float_max"
   | Float_min -> "Float_min"
   | Float_sum -> "Float_sum"
   | Float_prod -> "Float_prod"
@@ -548,39 +554,39 @@ let test_reduce msg reducefun reduceops printfun printop data =
 let _ =
   test_reduce "int"
               reduce_int
-              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
-              output_int name_of_int_reduce
+              [Max; Min; Sum; Prod; Land; Lor; Xor]
+              output_int name_of_reduce_op
               (myrank + 1);
   test_reduce "float"
               reduce_float
-              [Float_max; Float_min; Float_sum; Float_prod]
-              output_float name_of_float_reduce
+              [Max; Min; Sum; Prod]
+              output_float name_of_reduce_op
               (float myrank +. 1.0);
   let ia = Array.make 3 0 in
   test_reduce "int array"
               (fun d op r c -> reduce_int_array d ia op r c; ia)
-              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
-              output_int_array name_of_int_reduce
+              [Max; Min; Sum; Prod; Land; Lor; Xor]
+              output_int_array name_of_reduce_op
               [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
   let fa = Array.make 3 0.0 in
   test_reduce "float array"
               (fun d op r c -> reduce_float_array d fa op r c; fa)
-              [Float_max; Float_min; Float_sum; Float_prod]
-              output_float_array name_of_float_reduce
+              [Max; Min; Sum; Prod]
+              output_float_array name_of_reduce_op
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
   let ba = makebigarray1 Int8_unsigned C_layout 3 0 in
-  (* note: result of Int_prod is [0 225 0] due to 8-bit precision *)
+  (* note: result of Prod is [0 225 0] due to 8-bit precision *)
   test_reduce "bigarray1(Int8_unsigned)"
               (fun d op r c -> reduce_bigarray1 d ba op r c; ba)
-              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
-              (output_bigarray1 output_int) name_of_int_reduce
+              [Max; Min; Sum; Prod; Land; Lor; Xor]
+              (output_bigarray1 output_int) name_of_reduce_op
               (tobigarray1 Int8_unsigned C_layout
                 [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |]);
   let ba = makebigarray2 Int16_unsigned C_layout 2 3 0 in
   test_reduce "bigarray2(Int16_unsigned)"
               (fun d op r c -> reduce_bigarray2 d ba op r c; ba)
-              [Int_max; Int_min; Int_sum; Int_prod; Int_land; Int_lor; Int_xor]
-              (output_bigarray2 output_int) name_of_int_reduce
+              [Max; Min; Sum; Prod; Land; Lor; Xor]
+              (output_bigarray2 output_int) name_of_reduce_op
               (tobigarray2 Int16_unsigned C_layout
                 [| [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
                    [| myrank * 20; myrank * 20 + 1; myrank * 20 + 2 |] |])
@@ -597,29 +603,29 @@ let test_reduceall msg reducefun reduceop printfun data =
 
 let _ =
   test_reduceall "int"
-              allreduce_int Int_sum
+              allreduce_int Sum
               output_int
               (myrank + 1);
   test_reduceall "float"
-              allreduce_float Float_prod
+              allreduce_float Prod
               output_float
               (float myrank +. 1.0);
   let ia = Array.make 3 0 in
   test_reduceall "int array"
               (fun d op c -> allreduce_int_array d ia op c; ia)
-              Int_sum
+              Sum
               output_int_array
               [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
   let fa = Array.make 3 0.0 in
   test_reduceall "float array"
               (fun d op c -> allreduce_float_array d fa op c; fa)
-              Float_sum
+              Sum
               output_float_array
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
   let ba = makebigarray1 Complex32 C_layout 3 Complex.zero in
   test_reduceall "bigarray1(Complex32)"
               (fun d op c -> allreduce_bigarray1 d ba op c; ba)
-              Int_sum
+              Sum
               (output_bigarray1 output_complex)
               (tobigarray1 Complex32 C_layout
                 [| cx (float myrank +. 0.25) (float myrank +. 0.25);
@@ -640,31 +646,31 @@ let test_scan msg scanfun reduceop printfun data =
 let _ =
   test_scan "int"
               scan_int
-              Int_sum
+              Sum
               output_int
               (myrank + 1);
   test_scan "float"
               scan_float
-              Float_sum
+              Sum
               output_float
               (float myrank +. 1.0);
   let ia = Array.make 3 0 in
   test_scan "int array"
               (fun d op c -> scan_int_array d ia op c; ia)
-              Int_sum
+              Sum
               output_int_array
               [| myrank * 10; myrank * 10 + 1; myrank * 10 + 2 |];
   let fa = Array.make 3 0.0 in
   test_scan "float array"
               (fun d op c -> scan_float_array d fa op c; fa)
-              Float_sum
+              Sum
               output_float_array
               [| float myrank; float myrank +. 0.1; float myrank +. 0.2 |];
   let ba = makebigarray1 Int32 C_layout 3 0l in
   let r = Int32.of_int myrank in
   test_scan "bigarray1(Int32)"
               (fun d op c -> scan_bigarray1 d ba op c; ba)
-              Int_sum
+              Sum
               (output_bigarray1 output_int32)
               (tobigarray1 Int32 C_layout Int32.(
                 [| mul r 10l; add (mul r 10l) 1l; add (mul r 10l) 2l |]))

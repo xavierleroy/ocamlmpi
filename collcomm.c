@@ -470,17 +470,19 @@ value caml_mpi_alltoall_bigarray(value data, value result, value comm)
 
 /* Reduce */
 
-static MPI_Op reduce_intop[] =
-  { MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD, MPI_BAND, MPI_BOR, MPI_BXOR };
-static MPI_Op reduce_floatop[] =
-  { MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD };
+static MPI_Op reduce_op[] =
+  { MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD, MPI_BAND, MPI_BOR, MPI_BXOR,
+    // deprecated Int_* ops:
+    MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD, MPI_BAND, MPI_BOR, MPI_BXOR,
+    // deprecated Float_* ops:
+    MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD };
 
 value caml_mpi_reduce_int(value data, value op, value root, value comm)
 {
   long d = Long_val(data);
   long r = 0;
   MPI_Reduce(&d, &r, 1, MPI_LONG,
-             reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
+             reduce_op[Int_val(op)], Int_val(root), Comm_val(comm));
   return Val_long(r);
 }
 
@@ -493,7 +495,7 @@ value caml_mpi_reduce_intarray(value data, value result, value op,
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
   MPI_Reduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
-             reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
+             reduce_op[Int_val(op)], Int_val(root), Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
   /* At root node, also encode result */
@@ -507,7 +509,7 @@ value caml_mpi_reduce_float(value data, value op, value root, value comm)
   double d = Double_val(data);
   double r = 0.0;
   MPI_Reduce(&d, &r, 1, MPI_DOUBLE,
-             reduce_floatop[Int_val(op)], Int_val(root), Comm_val(comm));
+             reduce_op[Int_val(op)], Int_val(root), Comm_val(comm));
   return caml_copy_double(r);
 }
 
@@ -519,7 +521,7 @@ value caml_mpi_reduce_floatarray(value data, value result, value op,
   double * res = caml_mpi_output_floatarray(result, len);
 
   MPI_Reduce(d, res, len, MPI_DOUBLE,
-             reduce_floatop[Int_val(op)], Int_val(root), Comm_val(comm));
+             reduce_op[Int_val(op)], Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
   return Val_unit;
@@ -545,7 +547,7 @@ value caml_mpi_reduce_bigarray(value data, value result, value op,
   }
 
   MPI_Reduce(sendbuf, r->data, dlen, dt,
-             reduce_intop[Int_val(op)], Int_val(root), c);
+             reduce_op[Int_val(op)], Int_val(root), c);
   return Val_unit;
 }
 
@@ -556,7 +558,7 @@ value caml_mpi_allreduce_int(value data, value op, value comm)
   long d = Long_val(data);
   long r;
   MPI_Allreduce(&d, &r, 1, MPI_LONG,
-                reduce_intop[Int_val(op)], Comm_val(comm));
+                reduce_op[Int_val(op)], Comm_val(comm));
   return Val_long(r);
 }
 
@@ -568,7 +570,7 @@ value caml_mpi_allreduce_intarray(value data, value result, value op,
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
   MPI_Allreduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
-                reduce_intop[Int_val(op)], Comm_val(comm));
+                reduce_op[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
   /* Re-encode result at all nodes in place */
@@ -581,7 +583,7 @@ value caml_mpi_allreduce_float(value data, value op, value comm)
   double d = Double_val(data);
   double r;
   MPI_Allreduce(&d, &r, 1, MPI_DOUBLE,
-                reduce_floatop[Int_val(op)], Comm_val(comm));
+                reduce_op[Int_val(op)], Comm_val(comm));
   return caml_copy_double(r);
 }
 
@@ -593,7 +595,7 @@ value caml_mpi_allreduce_floatarray(value data, value result, value op,
   double * res = caml_mpi_output_floatarray(result, len);
 
   MPI_Allreduce(d, res, len, MPI_DOUBLE,
-                reduce_floatop[Int_val(op)], Comm_val(comm));
+                reduce_op[Int_val(op)], Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
   return Val_unit;
@@ -612,7 +614,7 @@ value caml_mpi_allreduce_bigarray(value data, value result, value op,
     caml_mpi_raise_error("Mpi.allreduce_bigarray: array size mismatch");
 
   MPI_Allreduce(sendbuf, r->data, dlen, dt,
-		reduce_intop[Int_val(op)], Comm_val(comm));
+		reduce_op[Int_val(op)], Comm_val(comm));
   return Val_unit;
 }
 
@@ -623,7 +625,7 @@ value caml_mpi_scan_int(value data, value op, value comm)
   long d = Long_val(data);
   long r;
 
-  MPI_Scan(&d, &r, 1, MPI_LONG, reduce_intop[Int_val(op)], Comm_val(comm));
+  MPI_Scan(&d, &r, 1, MPI_LONG, reduce_op[Int_val(op)], Comm_val(comm));
   return Val_long(r);
 }
 
@@ -635,7 +637,7 @@ value caml_mpi_scan_intarray(value data, value result, value op, value comm)
   caml_mpi_decode_intarray(data, len);
   /* Do the scan */
   MPI_Scan(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
-           reduce_intop[Int_val(op)], Comm_val(comm));
+           reduce_op[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
   /* Encode result */
@@ -648,7 +650,7 @@ value caml_mpi_scan_float(value data, value op, value comm)
   double d = Double_val(data), r;
 
   MPI_Scan(&d, &r, 1, MPI_DOUBLE,
-           reduce_floatop[Int_val(op)], Comm_val(comm));
+           reduce_op[Int_val(op)], Comm_val(comm));
   return caml_copy_double(r);
 }
 
@@ -659,7 +661,7 @@ value caml_mpi_scan_floatarray(value data, value result, value op, value comm)
   double * res = caml_mpi_output_floatarray(result, len);
 
   MPI_Scan(d, res, len, MPI_DOUBLE,
-           reduce_floatop[Int_val(op)], Comm_val(comm));
+           reduce_op[Int_val(op)], Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
   return Val_unit;
@@ -677,7 +679,7 @@ value caml_mpi_scan_bigarray(value data, value result, value op, value comm)
     caml_mpi_raise_error("Mpi.scan_bigarray: array size mismatch");
 
   MPI_Scan(sendbuf, r->data, dlen, dt,
-           reduce_intop[Int_val(op)], Comm_val(comm));
+           reduce_op[Int_val(op)], Comm_val(comm));
   return Val_unit;
 }
 

@@ -597,24 +597,43 @@ let alltoall_bigarray3 s d =
 
 (* Reduce *)
 
-type intop =
-  Int_max | Int_min | Int_sum | Int_prod | Int_land | Int_lor | Int_xor
-type floatop =
-  Float_max | Float_min | Float_sum | Float_prod
+type _ op =
+    Max  : [< `Int | `Float ] op
+  | Min  : [< `Int | `Float ] op
+  | Sum  : [< `Int | `Float ] op
+  | Prod : [< `Int | `Float ] op
+  | Land : [< `Int ] op
+  | Lor  : [< `Int ] op
+  | Xor  : [< `Int ] op
+  | Int_max  : [< `Int ] op
+  | Int_min  : [< `Int ] op
+  | Int_sum  : [< `Int ] op
+  | Int_prod : [< `Int ] op
+  | Int_land : [< `Int ] op
+  | Int_lor  : [< `Int ] op
+  | Int_xor  : [< `Int ] op
+  | Float_max  : [< `Float ] op
+  | Float_min  : [< `Float ] op
+  | Float_sum  : [< `Float ] op
+  | Float_prod : [< `Float ] op
 
-let is_not_also_floatop x =
+(* Only works for 4.08.0 <= OCaml *)
+let is_int_only_op (type t) (x : t op) =
   match x with
-  | Int_max | Int_min | Int_sum | Int_prod -> false
+  | Max | Min | Sum | Prod -> false
+  | Land | Lor | Xor -> true
+  | Float_max | Float_min | Float_sum | Float_prod -> false
+  | Int_max | Int_min | Int_sum | Int_prod
   | Int_land | Int_lor | Int_xor -> true
 
 external reduce_int:
-    int -> intop -> rank -> communicator -> int
+  int -> [`Int] op -> rank -> communicator -> int
     = "caml_mpi_reduce_int"
 external reduce_float:
-    float -> floatop -> rank -> communicator -> float
+    float -> [`Float] op -> rank -> communicator -> float
     = "caml_mpi_reduce_float"
 external reduce_int_array:
-    int array -> int array -> intop -> rank -> communicator -> unit
+    int array -> int array -> [`Int] op -> rank -> communicator -> unit
     = "caml_mpi_reduce_intarray"
 let reduce_int_array src dst op rank comm =
   if rank = comm_rank comm && Array.length src <> Array.length dst
@@ -622,7 +641,8 @@ let reduce_int_array src dst op rank comm =
   else reduce_int_array src dst op rank comm
 
 external reduce_float_array:
-    float array -> float array -> floatop -> rank -> communicator -> unit
+    float array -> float array -> [`Float] op
+    -> rank -> communicator -> unit
     = "caml_mpi_reduce_floatarray"
 let reduce_float_array src dst op rank comm =
   if rank = comm_rank comm && Array.length src <> Array.length dst
@@ -631,12 +651,11 @@ let reduce_float_array src dst op rank comm =
 
 external reduce_bigarray:
     ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
-    -> intop -> rank -> communicator -> unit
+    -> 'any op -> rank -> communicator -> unit
     = "caml_mpi_reduce_bigarray"
 
 let reduce_bigarray src dst op rank comm =
-  if ba_kind_is_float (Bigarray.Genarray.kind src)
-     && is_not_also_floatop op
+  if ba_kind_is_float (Bigarray.Genarray.kind src) && is_int_only_op op
   then mpi_error "Mpi.reduce_bigarray: invalid floating-point operation"
   else reduce_bigarray src dst op rank comm
 
@@ -652,13 +671,13 @@ let reduce_bigarray3 s d = reduce_bigarray (Bigarray.(genarray_of_array3 s))
 (* Reduce at all nodes *)
 
 external allreduce_int:
-    int -> intop -> communicator -> int
+    int -> [`Int] op -> communicator -> int
     = "caml_mpi_allreduce_int"
 external allreduce_float:
-    float -> floatop -> communicator -> float
+    float -> [`Float] op -> communicator -> float
     = "caml_mpi_allreduce_float"
 external allreduce_int_array:
-    int array -> int array -> intop -> communicator -> unit
+    int array -> int array -> [`Int] op -> communicator -> unit
     = "caml_mpi_allreduce_intarray"
 let allreduce_int_array src dst op comm =
   if Array.length src <> Array.length dst
@@ -666,7 +685,7 @@ let allreduce_int_array src dst op comm =
   else allreduce_int_array src dst op comm
 
 external allreduce_float_array:
-    float array -> float array -> floatop -> communicator -> unit
+    float array -> float array -> [`Float] op -> communicator -> unit
     = "caml_mpi_allreduce_floatarray"
 let allreduce_float_array src dst op comm =
   if Array.length src <> Array.length dst
@@ -675,11 +694,10 @@ let allreduce_float_array src dst op comm =
 
 external allreduce_bigarray:
     ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
-    -> intop -> communicator -> unit
+    -> 'any op -> communicator -> unit
     = "caml_mpi_allreduce_bigarray"
 let allreduce_bigarray src dst op comm =
-  if ba_kind_is_float (Bigarray.Genarray.kind src)
-     && is_not_also_floatop op
+  if ba_kind_is_float (Bigarray.Genarray.kind src) && is_int_only_op op
   then mpi_error "Mpi.allreduce_bigarray: invalid floating-point operation"
   else allreduce_bigarray src dst op comm
 
@@ -698,16 +716,15 @@ let allreduce_bigarray3 s d =
 
 (* Scan *)
 
-external scan_int:
-    int -> intop -> communicator -> int
+external scan_int: int -> [`Int] op -> communicator -> int
     = "caml_mpi_scan_int"
 
 external scan_float:
-    float -> floatop -> communicator -> float
+    float -> [`Float] op -> communicator -> float
     = "caml_mpi_scan_float"
 
 external scan_int_array:
-    int array -> int array -> intop -> communicator -> unit
+    int array -> int array -> [`Int] op -> communicator -> unit
     = "caml_mpi_scan_intarray"
 let scan_int_array src dst op comm =
   if Array.length dst <> Array.length src
@@ -715,7 +732,7 @@ let scan_int_array src dst op comm =
   else scan_int_array src dst op comm
 
 external scan_float_array:
-    float array -> float array -> floatop -> communicator -> unit
+    float array -> float array -> [`Float] op -> communicator -> unit
     = "caml_mpi_scan_floatarray"
 let scan_float_array src dst op comm =
   if Array.length dst <> Array.length src
@@ -724,11 +741,10 @@ let scan_float_array src dst op comm =
 
 external scan_bigarray:
     ('a, 'b, 'c) Bigarray.Genarray.t  -> ('a, 'b, 'c) Bigarray.Genarray.t
-    -> intop -> communicator -> unit
+    -> 'any op -> communicator -> unit
     = "caml_mpi_scan_bigarray"
 let scan_bigarray src dst op comm =
-  if ba_kind_is_float (Bigarray.Genarray.kind src)
-     && is_not_also_floatop op
+  if ba_kind_is_float (Bigarray.Genarray.kind src) && is_int_only_op op
   then mpi_error "Mpi.scan_bigarray: invalid floating-point operation"
   else scan_bigarray src dst op comm
 
