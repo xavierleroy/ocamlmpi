@@ -66,5 +66,3 @@ depend:
 
 include .depend
 
-clean::
-	$(MAKE) -C test clean
