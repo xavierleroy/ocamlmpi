@@ -11,43 +11,41 @@
 (*                                                                     *)
 (***********************************************************************)
 
-(* $Id$ *)
+(** {1 Caml bindings for the Message Passing Interface (MPI) library} *)
 
-(* Caml bindings for the Message Passing Interface (MPI) library *)
-
-(*** Error reporting *)
+(** {2 Error reporting} *)
 
 exception Error of string
         (* Raised when an operation of the [Mpi] module encounters an error.
            The string argument describes the error. *)
 
-(*** Basic operations on communicators *)
+(** {2 Basic operations on communicators} *)
 
 type communicator
-        (* The type of communicators.  Communicators are groups of
+       (** The type of communicators.  Communicators are groups of
            nodes (processing elements) that can exchange data. *)
 type rank = int
-        (* The type of ranks of nodes.  Nodes in a given communicator
-           are assigned integer ranks 0, 1, \ldots, $N-1$ where $N$
+       (** The type of ranks of nodes.  Nodes in a given communicator
+           are assigned integer ranks [0, 1, ..., N-1] where [N]
            is the size of the communicator. *)
 val comm_world: communicator
-        (* The global communicator. *)
+       (** The global communicator. *)
 external comm_size: communicator -> int = "caml_mpi_comm_size"
-        (* Return the size (number of nodes) in the given communicator. *)
+       (** Return the size (number of nodes) in the given communicator. *)
 external comm_rank: communicator -> rank = "caml_mpi_comm_rank"
-        (* Return the rank of the calling node in the given communicator.
+       (** Return the rank of the calling node in the given communicator.
            The rank [Mpi.comm_rank c] is between 0 (inclusive) and
            [Mpi.comm_size c] (exclusive). *)
 
-(*** Point-to-point communication *)
+(** {2 Point-to-point communication} *)
 
 type tag = int
-        (* The type of tags associated with messages in point-to-point
+       (** The type of tags associated with messages in point-to-point
            communications.  Tags are positive integers in the range
-           [0 .. 32767].  *)
+           [0...32767].  *)
 
 val send: 'a -> rank -> tag -> communicator -> unit
-        (* [Mpi.send d dst tag comm] sends a message containing data [d]
+       (** [Mpi.send d dst tag comm] sends a message containing data [d]
            to the node that has rank [dst] in communicator [comm].
            The message is sent with tag [tag].  Depending on the
            underlying MPI implementation, message sending can be
@@ -56,7 +54,7 @@ val send: 'a -> rank -> tag -> communicator -> unit
            can return before the target node has received the message. *)
 
 val receive: rank -> tag -> communicator -> 'a
-        (* [Mpi.receive src tag comm] blocks until a message is available,
+       (** [Mpi.receive src tag comm] blocks until a message is available,
            and returns the data contained in that message.
            The [src] argument selects the desired source for the message:
            if [src] is [Mpi.any_source], messages from any node in communicator
@@ -74,12 +72,12 @@ val receive: rank -> tag -> communicator -> 'a
            at compile-type.  The programmer should be careful about using
            the returned value with the right type. *)
 val receive_status: rank -> tag -> communicator -> 'a * rank * tag
-        (* Same as [Mpi.receive], but returns a triple [(d, src, tag)]
+       (** Same as [Mpi.receive], but returns a triple [(d, src, tag)]
            where [d] is the data associated with the message,
            [src] the rank of the node that sent the message,
            and [tag] the actual tag attached to the message. *)
 val probe: rank -> tag -> communicator -> rank * tag
-        (* [Mpi.probe src tag comm] blocks until a message is available
+       (** [Mpi.probe src tag comm] blocks until a message is available
            on communicator [comm], with source and tag matching the
            [src] and [tag] arguments as described in [Mpi.receive].
            It then returns the rank of the node that sent the message
@@ -87,13 +85,14 @@ val probe: rank -> tag -> communicator -> rank * tag
            is not read, and can be retrieved later with [Mpi.receive]
            or [Mpi.receive_status]. *)
 val iprobe: rank -> tag -> communicator -> (rank * tag) option
-        (* [Mpi.iprobe src tag comm] is a non-blocking counterpart to
+       (** [Mpi.iprobe src tag comm] is a non-blocking counterpart to
            {!probe}.  If there is no matching message waiting it returns
            [None].  Otherwise, it returns [Some (rank, tag)] like
            {!probe}. *)
+
 val any_tag: tag
 val any_source: rank
-        (* The special values of the [tag] and [src] arguments of
+       (** The special values of the [tag] and [src] arguments of
            [Mpi.receive], [Mpi.receive_status] and [Mpi.probe],
            indicating that any message tag is acceptable (for [Mpi.any_tag])
            or any message source is acceptable (for [Mpi.any_source]). *)
@@ -126,7 +125,7 @@ val receive_bigarray2:
   ('a, 'b, 'c) Bigarray.Array2.t -> rank -> tag -> communicator -> unit
 val receive_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t -> rank -> tag -> communicator -> unit
-        (* Specialized versions of [Mpi.send] and [Mpi.receive]
+       (** Specialized versions of [Mpi.send] and [Mpi.receive]
            for communicating integers, floating-point numbers,
            arrays of integers, arrays of floating-point numbers and
            bigarrays.
@@ -150,10 +149,10 @@ val receive_bigarray3:
            than those used to send it; only the total number of elements must
            match. *)
 
-(*** Non-blocking communication *)
+(** {2 Non-blocking communication} *)
 
 type request
-  (* Encapsulates MPI Request object, also contains the 
+ (** Encapsulates MPI Request object, also contains the 
      associated send/recv buffer in the wrapper object *) 
 
 val null_request: request
@@ -161,22 +160,21 @@ val null_request: request
 val isend: 'a -> rank -> tag -> communicator -> request
 
 val isend_varlength: 'a -> rank -> tag -> communicator -> request * request
-  (* Post non-blocking send operation.
+ (** Post non-blocking send operation.
      [Mpi.send d dst tag comm] posts a send operation for data [d]
-     to the node that has rank [dst] in communicator [comm 
+     to the node that has rank [dst] in communicator [comm ]
      with tag [tag].  
      Same parameters as [Mpi.send], but returns immediately with 
-     a pair of Mpi.request objects after posting two send operations for
+     a pair of [Mpi.request] objects after posting two send operations for
      transmission of message length and the message itself
      buffer. The request objects can be used to wait for the 
-     completion of the send operation.
-  *)
+     completion of the send operation. *)
 
 
 val ireceive: int -> rank -> tag -> communicator -> request
 
 val ireceive_varlength: rank -> tag -> communicator -> request
-  (* Post non-blocking receive operation. 
+ (** Post non-blocking receive operation. 
      Same parameters as [Mpi.receive], but returns with received 
      buffer length and an Mpi.request object, which can be used to 
      wait for the completion of the receive operation.
@@ -186,34 +184,34 @@ val ireceive_varlength: rank -> tag -> communicator -> request
   *)
 
 val wait: request -> unit 
-  (* Wait for the completion of a non-blocking operation *)
+ (** Wait for the completion of a non-blocking operation *)
 
 val wait_pair: request * request -> unit
-  (* Wait for the completion of an ordered pair of non-blocking 
+ (** Wait for the completion of an ordered pair of non-blocking 
      operations *)
 
 val wait_receive: request -> 'a
-  (* Wait for the completion of a non-blocking receive operation
+ (** Wait for the completion of a non-blocking receive operation
      and return the received object *)
 
-(*** Group communication *)
+(** {2 Group communication} *)
 
 val barrier: communicator -> unit
-        (* [Mpi.barrier comm] suspends the calling process until all
+       (** [Mpi.barrier comm] suspends the calling process until all
            nodes in communicator [comm] are executing [Mpi.barrier comm].
-           Then all nodes return from [Mpi.barrier] and continue executing.        *)
+           Then all nodes return from [Mpi.barrier] and continue executing. *)
 
-(** Broadcast *)
+(** {3 Broadcast} *)
 
 val broadcast: 'a -> rank -> communicator -> 'a
-        (* [Mpi.broadcast d root comm] broadcasts data [d] from node
+       (** [Mpi.broadcast d root comm] broadcasts data [d] from node
            with rank [root] in [comm] to all other nodes in [comm].
            All nodes in [comm] must call [Mpi.broadcast] with the same
            [root] and [comm] arguments.  The [d] argument is significant
            only at node [root]; it is ignored at other nodes.
            [Mpi.broadcast] returns the broadcast data. *)
 val broadcast_opt: 'a option -> rank -> communicator -> 'a
-        (* Same as [Mpi.broadcast], except that the data (first argument)
+       (** Same as [Mpi.broadcast], except that the data (first argument)
            is provided as an option type.  The root node must provide a
            first argument of the form [Some d] where [d] is the data to
            broadcast.  The other node provide [None] as their first
@@ -232,7 +230,7 @@ val broadcast_bigarray2:
   ('a, 'b, 'c) Bigarray.Array2.t -> rank -> communicator -> unit
 val broadcast_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t -> rank -> communicator -> unit
-        (* Specialized versions of [Mpi.broadcast] for integers, floats,
+       (** Specialized versions of [Mpi.broadcast] for integers, floats,
            arrays of integers, arrays of floats and bigarrays.  For
            [Mpi.broadcast_int] and [Mpi.broadcast_float], the broadcast
            value is returned as result, and the first argument is significant
@@ -242,9 +240,10 @@ val broadcast_bigarray3:
            array passed as first argument; thus, the first argument is
            significant at all nodes. *)
 
-(** Scatter *)
+(** {3 Scatter} *)
+
 val scatter: 'a array -> rank -> communicator -> 'a
-        (* [Mpi.scatter a root comm] scatters the elements of array [a]
+       (** [Mpi.scatter a root comm] scatters the elements of array [a]
            from node [root] to all nodes in [comm].  The node with rank [i]
            in [comm] receives the element [a.(i)] and returns it as result
            of [Mpi.scatter].  The [a] argument is significant only at node
@@ -260,7 +259,7 @@ val scatter_from_bigarray2:
   ('a, 'b, 'c) Bigarray.Array2.t -> rank -> communicator -> 'a
 val scatter_from_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t -> rank -> communicator -> 'a
-        (* Specialized versions of [Mpi.scatter] for integers, floats and
+       (** Specialized versions of [Mpi.scatter] for integers, floats and
            values from bigarrays. *)
 val scatter_int_array: int array -> int array -> rank -> communicator -> unit
 val scatter_float_array:
@@ -271,7 +270,7 @@ val scatter_bigarray:
 val scatter_bigarray1:
   ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
   -> rank -> communicator -> unit
-        (* Specialized versions of [Mpi.scatter] for arrays of integers,
+       (** Specialized versions of [Mpi.scatter] for arrays of integers,
            arrays of floats and bigarrays.
            [Mpi.scatter_int_array src dst root comm]
            splits the array [src] at node [root] into [Mpi.comm_size comm]
@@ -283,9 +282,10 @@ val scatter_bigarray1:
            scatter from [n] dimensions to [n-1] dimensions. In any case,
            only the total number of elements matters. *)
 
-(** Gather *)
+(** {3 Gather} *)
+
 val gather: 'a -> rank -> communicator -> 'a array
-        (* [Mpi.gather d root comm] gathers the values of the [d] argument
+       (** [Mpi.gather d root comm] gathers the values of the [d] argument
            at all nodes onto node [root], and returns those values as an
            array.  At node [root], [Mpi.gather] returns an array of
            size [Mpi.comm_size comm]; element number [i] is the value 
@@ -301,7 +301,7 @@ val gather_to_bigarray2:
   'a -> ('a, 'b, 'c) Bigarray.Array2.t -> rank -> communicator -> unit
 val gather_to_bigarray3:
   'a -> ('a, 'b, 'c) Bigarray.Array3.t -> rank -> communicator -> unit
-        (* Specialized versions of [Mpi.gather] for integers, floats and
+       (** Specialized versions of [Mpi.gather] for integers, floats and
            values to bigarrays. *)
 val gather_int_array: int array -> int array -> rank -> communicator -> unit
 val gather_float_array:
@@ -312,7 +312,7 @@ val gather_bigarray:
 val gather_bigarray1:
   ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
   -> rank -> communicator -> unit
-        (* Specialized versions of [Mpi.gather] for arrays of integers,
+       (** Specialized versions of [Mpi.gather] for arrays of integers,
            arrays of floats and bigarrays.
            [Mpi.gather_int_array src dst root comm]
            sends the arrays [src] at each node to the node [root].
@@ -323,7 +323,8 @@ val gather_bigarray1:
            gather from [n-1] dimensions to [n] dimensions. In any case,
            only the total number of elements matters. *)
 
-(** Gather to all *)
+(** {3 Gather to all} *)
+
 val allgather: 'a -> communicator -> 'a array
 val allgather_int: int -> int array -> communicator -> unit
 val allgather_float: float -> float array -> communicator -> unit
@@ -344,13 +345,14 @@ val allgather_bigarray:
 val allgather_bigarray1:
   ('a, 'b, 'c) Bigarray.Array1.t  -> ('a, 'b, 'c) Bigarray.Array1.t
   -> communicator -> unit
-        (* The [Mpi.allgather*] functions behave like the corresponding
+       (** The [Mpi.allgather*] functions behave like the corresponding
            [Mpi.gather*] functions, except that the result of the gather
            operation is available at all nodes, not only at the root node.
            In other terms, [Mpi.allgather] is equivalent to [Mpi.gather]
            at root [r] followed by a broadcast of the result from node [r]. *)
 
-(** All to all *)
+(** {3 All to all} *)
+
 val alltoall: 'a array -> communicator -> 'a array
 val alltoall_int_array: int array -> int array -> communicator -> unit
 val alltoall_float_array: float array -> float array -> communicator -> unit
@@ -366,14 +368,15 @@ val alltoall_bigarray2:
 val alltoall_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
   -> communicator -> unit
-        (* Using the [Mpi.alltoall*] functions, each process effectively does
+       (** Using the [Mpi.alltoall*] functions, each process effectively does
            an [Mpi.scatter*] followed by an [Mpi.gather*]. They can also be
            seen as an extension to [Mpi.allgather*] where each process sends
            distinct data to each of the receivers.
            Both send and receive arrays must have the same size at all
            nodes. *)
 
-(** Reduce *)
+(** {3 Reduce} *)
+
 type _ op =
     Max  : [< `Int | `Float ] op
   | Min  : [< `Int | `Float ] op
@@ -392,8 +395,8 @@ type _ op =
   | Float_max  : [< `Float ] op
   | Float_min  : [< `Float ] op
   | Float_sum  : [< `Float ] op
-  | Float_prod : [< `Float ] op
-  (* The operations that can be performed by a reduce or scan; some of
+  | Float_prod : [< `Float ] op (** *)
+ (** The operations that can be performed by a reduce or scan; some of
      them are only valid for integers. [Max] and [Min]
      are maximum and minimum; [Sum] and [Prod]
      are summation ([+]) and product ([*]).
@@ -410,7 +413,7 @@ type _ op =
 
 val reduce_int: int -> [`Int] op -> rank -> communicator -> int
 val reduce_float: float -> [`Float] op -> rank -> communicator -> float
-        (* [Mpi.reduce_int d op root comm] computes the value of
+       (** [Mpi.reduce_int d op root comm] computes the value of
            [d0 op d1 op ... op dN], where [d0 ... dN] are the values of
            the [d] argument at every node in [comm].  The result value
            is returned at node with rank [root].  A meaningless integer
@@ -436,7 +439,7 @@ val reduce_bigarray2:
 val reduce_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
   -> 'any op -> rank -> communicator -> unit
-        (* [Mpi.reduce_int_array d res op root comm] computes 
+       (** [Mpi.reduce_int_array d res op root comm] computes 
            [Array.length d] reductions by operation [op] simultaneously.
            For every [i], the values of [d.(i)] at every node
            are combined using [op] and the result is stored into [dst.(i)]
@@ -445,7 +448,8 @@ val reduce_bigarray3:
            [Land], [Lor] and [Xor] operations and the others
            are interpreted as floating-point operations. *)
 
-(** Reduce to all *)
+(** {3 Reduce to all} *)
+
 val allreduce_int: int -> [`Int] op -> communicator -> int
 val allreduce_float: float -> [`Float] op -> communicator -> float
 val allreduce_int_array:
@@ -467,7 +471,7 @@ val allreduce_bigarray2:
 val allreduce_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
   -> 'any op -> communicator -> unit
-        (* The [Mpi.allreduce_*] operations are similar to the
+       (** The [Mpi.allreduce_*] operations are similar to the
            corresponding [Mpi.reduce_*] operations, except that the result
            of the reduction is made available at all nodes.
            For [Mpi.allreduce_bigarray*] applied to an array of floating-point
@@ -475,10 +479,10 @@ val allreduce_bigarray3:
            and [Xor] operations and the others are interpreted as
            floating-point operations. *)
 
-(** Scan *)
+(** {3 Scan} *)
 val scan_int: int -> [`Int] op -> communicator -> int
 val scan_float: float -> [`Float] op -> communicator -> float
-        (* [Mpi.scan_int d res op comm] performs a scan operation over
+       (** [Mpi.scan_int d res op comm] performs a scan operation over
            the integers [d] at every node.  Let [d0 ... dN] be the
            values of the [d] at every node in [comm].  At node with rank [R],
            [Mpi.scan_int d res op comm] returns [d0 op ... op dR].
@@ -502,7 +506,7 @@ val scan_bigarray2:
 val scan_bigarray3:
   ('a, 'b, 'c) Bigarray.Array3.t  -> ('a, 'b, 'c) Bigarray.Array3.t
   -> 'any op -> communicator -> unit
-        (* Same as [Mpi.scan_int] and [Mpi.scan_float], but perform several
+       (** Same as [Mpi.scan_int] and [Mpi.scan_float], but perform several
            scanning operations on the elements of the input array (first
            argument).  The result is stored in the array passed as second
            argument at the root node. For [Mpi.scan_bigarray*] applied to
@@ -510,15 +514,15 @@ val scan_bigarray3:
            the [Land], [Lor] and [Xor] operations and the
            others are interpreted as floating-point operations. *)
 
-(*** Advanced operations on communicators *)
+(** {2 Advanced operations on communicators} *)
 
 val comm_compare: communicator -> communicator -> bool
-        (* Compare two communicators and return [true] if they are the same,
+       (** Compare two communicators and return [true] if they are the same,
            [false] otherwise. *)
         
 type color = int
 val comm_split: communicator -> color -> int -> communicator
-        (* [Mpi.comm_split comm col key] splits the communicator into
+       (** [Mpi.comm_split comm col key] splits the communicator into
            several communicators based on the values of [col] and
            [key] at every node.  For each distinct value of the [col]
            argument, a new communicator is created.  It contains all
@@ -533,16 +537,17 @@ val comm_split: communicator -> color -> int -> communicator
            of that node. *)
            
 val color_none: color
-        (* In [Mpi.comm_split], a node can pass [Mpi.color_none] as the
+       (** In [Mpi.comm_split], a node can pass [Mpi.color_none] as the
            [col] argument to indicate that it does not want to be part
            of any of the new communicators.  [Mpi.comm_split] then
            returns a null communicator (allowing no communications) in
            that node. *)
 
-(** Cartesian topologies *)
+(** {3 Cartesian topologies} *)
+
 val cart_create:
     communicator -> int array -> bool array -> bool -> communicator
-        (* [Mpi.cart_create comm dims periodic reorder] embeds a cartesian
+       (** [Mpi.cart_create comm dims periodic reorder] embeds a cartesian
            topology (multi-dimensional grid) on the nodes of
            communicator [comm], and return a
            new communicator with that information attached.
@@ -556,7 +561,7 @@ val cart_create:
            The initial communicator [comm] must contain at least as many
            nodes as specified by [dims]. *)
 val dims_create: int -> int array -> int array
-        (* [Mpi.dims_create numnodes hints] helps determining a
+       (** [Mpi.dims_create numnodes hints] helps determining a
            suitable [dims] argument to [Mpi.cart_create]
            given a number of nodes [numnodes], the number of
            dimensions required, and optional constraints.
@@ -569,76 +574,76 @@ val dims_create: int -> int array -> int array
            dimensions for a two-dimensional grid containing 24 nodes. *)
 
 val cart_rank: communicator -> int array -> rank
-        (* [Mpi.cart_rank comm coords] return the rank of the node in
+       (** [Mpi.cart_rank comm coords] return the rank of the node in
            the cartesian topology [comm] that is at coordinates [coords].
            The [coords] array must have one element per dimension of the
            cartesian topology.  Individual coordinates range between [0]
            (inclusive) and the corresponding dimension (exclusive). *)
 val cart_coords: communicator -> rank -> int array
-        (* The inverse operation of [Mpi.cart_rank].
+       (** The inverse operation of [Mpi.cart_rank].
            [Mpi.cart_coords comm r] returns the cartesian coordinates
            of the node having rank [r] in [comm]. *)
 
-(*** Process group management *)
+(** {3 Process group management} *)
 
 type group
-        (* The type of groups.  Groups represent sets of nodes
+       (** The type of groups.  Groups represent sets of nodes
            (processing elements).  Unlike communicators, they cannot
            be used directly for communication.  Instead, one constructs
            a group representing the desired set of nodes, then build
            a communicator for this group.  *)
 
 val comm_create: communicator -> group -> communicator
-        (* [Mpi.comm_create comm group] creates a communicator
+       (** [Mpi.comm_create comm group] creates a communicator
            whose nodes are those described in [group].  [comm] is
            the initial communicator; the nodes in [group] must be
            a subset of those in [comm].  The null communicator is
            returned to the nodes that are not part of [group]. *)
 
 val group_size: group -> int
-        (* Return the size (number of nodes) in the given group. *)
+       (** Return the size (number of nodes) in the given group. *)
 val group_rank: group -> rank
-        (* Return the rank of the calling node in the given group. *)
+       (** Return the rank of the calling node in the given group. *)
 
 val group_translate_ranks: group -> rank array -> group -> rank array
-        (* [Mpi.group_translate_ranks g1 ranks g2] translates the ranks
+       (** [Mpi.group_translate_ranks g1 ranks g2] translates the ranks
            of a number of nodes from one group to another.  [rank]
            is an array of node ranks relative to group [g1].  The
            returned array contains the ranks for the same nodes, relative
            to group [g2]. *)
 
 val comm_group: communicator -> group
-        (* [Mpi.comm_group comm] returns the group of all nodes belonging
+       (** [Mpi.comm_group comm] returns the group of all nodes belonging
            to the communicator [comm], with the same ranks as in [comm]. *)
 val group_union: group -> group -> group
 val group_intersection: group -> group -> group
 val group_difference: group -> group -> group
-        (* Union, intersection and set difference over groups. *)
+       (** Union, intersection and set difference over groups. *)
 
 val group_incl: group -> rank array -> group
-        (* [Mpi.group_incl group ranks] returns the subset of [group]
+       (** [Mpi.group_incl group ranks] returns the subset of [group]
            containing the nodes whose ranks are given in the array [ranks]. *)
 val group_excl: group -> rank array -> group
-        (* [Mpi.group_excl group ranks] returns the subset of [group]
+       (** [Mpi.group_excl group ranks] returns the subset of [group]
            containing the nodes whose ranks are not given in the array
            [ranks]. *)
 
 type group_range = { range_first: int; range_last: int; range_stride: int }
-        (* A group range represents the set of nodes whose ranks are
+       (** A group range represents the set of nodes whose ranks are
            ([range_first]; [range_first + range_stride]; ...; [range_last]). *)
 
 val group_range_incl: group -> group_range array -> group
-        (* [Mpi.group_range_incl group ranges] returns the subset of [group]
+       (** [Mpi.group_range_incl group ranges] returns the subset of [group]
            containing the nodes whose ranks belong to the ranges
            listed in [ranges]. *)
 val group_range_excl: group -> group_range array -> group
-        (* [Mpi.group_range_excl group ranges] returns the subset of [group]
+       (** [Mpi.group_range_excl group ranges] returns the subset of [group]
            containing the nodes whose ranks do not belong to the ranges
            listed in [ranges]. *)
 
-(*** Miscellaneous *)
+(** {2 Miscellaneous} *)
 
 external wtime: unit -> float = "caml_mpi_wtime"
-        (* Return the wall-clock time elapsed at the calling node
+       (** Return the wall-clock time elapsed at the calling node
            since the beginning of the program execution. *)
 
