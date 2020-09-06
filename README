@@ -31,13 +31,19 @@ The file mpi.mli in this directory lists the MPI functions provided,
 along with short documentation.  See the MPI docs at the URLs above
 for more detailed info.
 
-Most communication functions come in five flavors:
+Most communication functions come in 10 flavors:
 - one generic function operating on any data type  (e.g. Mpi.send)
-- four specialized functions for the following types:
+- nine specialized functions for the following types:
               int         (Mpi.send_int)
               float       (Mpi.send_float
               int array   (Mpi.send_int_array)
               float array (Mpi.send_float_array)
+              Bigarray.Genarray.t (Mpi.send_bigarray)
+              Bigarray.Array0.t   (Mpi.send_bigarray0)
+              Bigarray.Array1.t   (Mpi.send_bigarray1)
+              Bigarray.Array2.t   (Mpi.send_bigarray2)
+              Bigarray.Array3.t   (Mpi.send_bigarray3)
+
 The generic function is simpler to use, and more general, but involves
 more overhead than the specialized functions.
 

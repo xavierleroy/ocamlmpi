@@ -1,3 +1,8 @@
+Version 1.05:
+- Add support for communicating bigarrays (#9) (Timothy Bourke)
+- Nicer GADT-based interface for reduce operations  (#9) (Timothy Bourke)
+- Better documentation in mpi.mli
+
 Version 1.04:
 - OCaml FFI: use caml_ names and CAML_NAME_SPACE
 - Constify caml_mpi_exn for compatibility with OCaml >= 4.09
@@ -5,8 +10,8 @@ Version 1.04:
 - Use MPI 2 error handlers (#5) (Timothy Bourke)
 
 Version 1.03:
-- Ensure compatibility with OCaml 4.06 and up by using bytes instead of strings for internal buffers.
-  The API does not change.
+- Ensure compatibility with OCaml 4.06 and up by using bytes instead
+  of strings for internal buffers.  The API does not change.
   (Contributed by Anthony Scemama, review by Timothy Bourke)
 
 Version 1.02:
