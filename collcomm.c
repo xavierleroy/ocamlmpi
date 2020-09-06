@@ -19,6 +19,7 @@
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
 #include <caml/alloc.h>
+#include <caml/bigarray.h>
 #include "camlmpi.h"
 
 /* Barrier synchronization */
@@ -65,6 +66,16 @@ value caml_mpi_broadcast_floatarray(value data, value root, value comm)
   double * d = caml_mpi_input_floatarray(data, len);
   MPI_Bcast(d, len, MPI_DOUBLE, Int_val(root), Comm_val(comm));
   caml_mpi_commit_floatarray(d, data, len);
+  return Val_unit;
+}
+
+value caml_mpi_broadcast_bigarray(value data, value root, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  mlsize_t dlen = caml_ba_num_elts(d);
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+
+  MPI_Bcast(d->data, dlen, dt, Int_val(root), Comm_val(comm));
   return Val_unit;
 }
 
@@ -129,6 +140,28 @@ value caml_mpi_scatter_float(value data, value root, value comm)
   return caml_copy_double(dst);
 }
 
+CAMLprim value caml_mpi_scatter_from_bigarray(value data, value root,
+					      value comm)
+{
+  CAMLparam3(data, root, comm);
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  intnat kind = d->flags & CAML_BA_KIND_MASK;
+  MPI_Comm c = Comm_val(comm);
+  int rank, csize;
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[kind];
+  any_ba_value(dst);
+
+  MPI_Comm_rank(c, &rank);
+  if (rank == Int_val(root)) {
+    MPI_Comm_size(c, &csize);
+    if (caml_ba_num_elts(d) != csize)
+      caml_mpi_raise_error("Mpi.scatter_from_bigarray: array size mismatch");
+  }
+  MPI_Scatter(d->data, 1, dt, &dst, 1, dt, Int_val(root), c);
+
+  CAMLreturn(caml_mpi_ba_value(dst, kind));
+}
+
 value caml_mpi_scatter_intarray(value source, value dest,
                                 value root, value comm)
 {
@@ -151,6 +184,27 @@ value caml_mpi_scatter_floatarray(value source, value dest,
               Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(src);
   caml_mpi_commit_floatarray(dst, dest, len);
+  return Val_unit;
+}
+
+value caml_mpi_scatter_bigarray(value source, value dest,
+                                value root, value comm)
+{
+  struct caml_ba_array* s = Caml_ba_array_val(source);
+  struct caml_ba_array* d = Caml_ba_array_val(dest);
+  MPI_Comm c = Comm_val(comm);
+  int rank, csize;
+  mlsize_t dlen = caml_ba_num_elts(d);
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+
+  MPI_Comm_rank(c, &rank);
+  if (rank == Int_val(root)) {
+    MPI_Comm_size(c, &csize);
+    if (caml_ba_num_elts(s) != dlen * csize)
+      caml_mpi_raise_error("Mpi.scatter_bigarray: array size mismatch");
+  }
+
+  MPI_Scatter(s->data, dlen, dt, d->data, dlen, dt, Int_val(root), c);
   return Val_unit;
 }
 
@@ -205,6 +259,50 @@ value caml_mpi_gather_float(value data, value result, value root, value comm)
   return Val_unit;
 }
 
+CAMLprim value caml_mpi_gather_to_bigarray(value data, value result,
+				           value root, value comm)
+{
+  CAMLparam4(data, result, root, comm);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  intnat kind = r->flags & CAML_BA_KIND_MASK;
+  MPI_Comm c = Comm_val(comm);
+  int rank, csize;
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[kind];
+  any_ba_value(d);
+
+  MPI_Comm_rank(c, &rank);
+  if (rank == Int_val(root)) {
+    MPI_Comm_size(c, &csize);
+    if (caml_ba_num_elts(r) != csize)
+      caml_mpi_raise_error("Mpi.gather_to_bigarray: array size mismatch");
+  }
+
+  caml_mpi_ba_element(data, kind, d);
+  MPI_Gather(d, 1, dt, r->data, 1, dt, Int_val(root), c);
+  CAMLreturn(Val_unit);
+}
+
+value caml_mpi_gather_bigarray(value data, value result,
+			       value root, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  MPI_Comm c = Comm_val(comm);
+  int rank, csize;
+  mlsize_t dlen = caml_ba_num_elts(d);
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[r->flags & CAML_BA_KIND_MASK];
+
+  MPI_Comm_rank(c, &rank);
+  if (rank == Int_val(root)) {
+    MPI_Comm_size(c, &csize);
+    if (caml_ba_num_elts(r) != dlen * csize)
+      caml_mpi_raise_error("Mpi.gather_bigarray: array size mismatch");
+  }
+
+  MPI_Gather(d->data, dlen, dt, r->data, dlen, dt, Int_val(root), c);
+  return Val_unit;
+}
+
 /* Gather to all */
 
 value caml_mpi_allgather(value sendbuf,
@@ -253,19 +351,138 @@ value caml_mpi_allgather_float(value data, value result, value comm)
   return Val_unit;
 }
 
+CAMLprim value caml_mpi_allgather_to_bigarray(value data, value result,
+					      value comm)
+{
+  CAMLparam3(data, result, comm);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  intnat kind = r->flags & CAML_BA_KIND_MASK;
+  MPI_Comm c = Comm_val(comm);
+  int csize;
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[kind];
+  any_ba_value(d);
+
+  MPI_Comm_size(c, &csize);
+  if (caml_ba_num_elts(r) != csize)
+    caml_mpi_raise_error("Mpi.allgather_to_bigarray: array size mismatch");
+
+  caml_mpi_ba_element(data, kind, d);
+  MPI_Allgather(d, 1, dt, r->data, 1, dt, c);
+  CAMLreturn(Val_unit);
+}
+
+value caml_mpi_allgather_bigarray(value data, value result, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  MPI_Comm c = Comm_val(comm);
+  int csize;
+  mlsize_t dlen = caml_ba_num_elts(d);
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[r->flags & CAML_BA_KIND_MASK];
+
+  MPI_Comm_size(c, &csize);
+  if (caml_ba_num_elts(r) != dlen * csize)
+    caml_mpi_raise_error("Mpi.allgather_bigarray: array size mismatch");
+
+  MPI_Allgather(d->data, dlen, dt, r->data, dlen, dt, c);
+  return Val_unit;
+}
+
+/* All to all */
+
+value caml_mpi_alltoall(value sendbuf, value sendlengths,
+                        value recvbuf, value recvlengths,
+                        value comm)
+{
+  int * recvcounts, * recvdispls;
+  int * sendcounts, * senddispls;
+
+  caml_mpi_counts_displs(sendlengths, &sendcounts, &senddispls);
+  caml_mpi_counts_displs(recvlengths, &recvcounts, &recvdispls);
+  MPI_Alltoallv(String_val(sendbuf), sendcounts, senddispls, MPI_BYTE,
+                Bp_val(recvbuf), recvcounts, recvdispls, MPI_BYTE,
+                Comm_val(comm));
+  caml_stat_free(recvcounts);
+  caml_stat_free(recvdispls);
+  caml_stat_free(sendcounts);
+  caml_stat_free(senddispls);
+  return Val_unit;
+}
+
+value caml_mpi_alltoall_intarray(value data, value result, value comm)
+{
+  mlsize_t len = Wosize_val(data);
+  MPI_Comm c = Comm_val(comm);
+  int csize, count;
+  void* sendbuf = &Field(data, 0);
+  void* recvbuf = &Field(result, 0);
+
+  MPI_Comm_size(c, &csize);
+  count = len / csize;
+  if (len % csize != 0)
+    caml_mpi_raise_error("Mpi.alltoall_intarray: incorrect array size");
+
+  if (sendbuf == recvbuf) sendbuf = MPI_IN_PLACE;
+
+  MPI_Alltoall(sendbuf, count, MPI_LONG, recvbuf, count, MPI_LONG, c);
+  return Val_unit;
+}
+
+value caml_mpi_alltoall_floatarray(value data, value result, value comm)
+{
+  mlsize_t len = Wosize_val(data) / Double_wosize;
+  mlsize_t reslen = Wosize_val(result) / Double_wosize;
+  double * d = caml_mpi_input_floatarray(data, len);
+  double * res = caml_mpi_output_floatarray(result, reslen);
+  MPI_Comm c = Comm_val(comm);
+  int csize, count;
+
+  MPI_Comm_size(c, &csize);
+  count = len / csize;
+  if (len % csize != 0)
+    caml_mpi_raise_error("Mpi.alltoall_floatarray: incorrect array size");
+
+  MPI_Alltoall(d, count, MPI_DOUBLE, res, count, MPI_DOUBLE, c);
+  caml_mpi_free_floatarray(d);
+  caml_mpi_commit_floatarray(res, result, reslen);
+  return Val_unit;
+}
+
+value caml_mpi_alltoall_bigarray(value data, value result, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  MPI_Comm c = Comm_val(comm);
+  int csize, count;
+  mlsize_t dlen = caml_ba_num_elts(d);
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[r->flags & CAML_BA_KIND_MASK];
+
+  MPI_Comm_size(c, &csize);
+  if (caml_ba_num_elts(r) != dlen)
+    caml_mpi_raise_error("Mpi.alltoall_bigarray: array size mismatch");
+  count = dlen / csize;
+  if (dlen % csize != 0)
+    caml_mpi_raise_error("Mpi.alltoall_bigarray: incorrect array size");
+
+  MPI_Alltoall(d->data, count, dt, r->data, count, dt, c);
+  return Val_unit;
+}
+
 /* Reduce */
 
-static MPI_Op reduce_intop[] =
-  { MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD, MPI_BAND, MPI_BOR, MPI_BXOR };
-static MPI_Op reduce_floatop[] =
-  { MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD };
+static MPI_Op reduce_op[] =
+  { MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD, MPI_BAND, MPI_BOR, MPI_BXOR,
+    // deprecated Int_* ops:
+    MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD, MPI_BAND, MPI_BOR, MPI_BXOR,
+    // deprecated Float_* ops:
+    MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD };
 
 value caml_mpi_reduce_int(value data, value op, value root, value comm)
 {
   long d = Long_val(data);
   long r = 0;
   MPI_Reduce(&d, &r, 1, MPI_LONG,
-             reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
+             reduce_op[Int_val(op)], Int_val(root), Comm_val(comm));
   return Val_long(r);
 }
 
@@ -278,7 +495,7 @@ value caml_mpi_reduce_intarray(value data, value result, value op,
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
   MPI_Reduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
-             reduce_intop[Int_val(op)], Int_val(root), Comm_val(comm));
+             reduce_op[Int_val(op)], Int_val(root), Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
   /* At root node, also encode result */
@@ -292,7 +509,7 @@ value caml_mpi_reduce_float(value data, value op, value root, value comm)
   double d = Double_val(data);
   double r = 0.0;
   MPI_Reduce(&d, &r, 1, MPI_DOUBLE,
-             reduce_floatop[Int_val(op)], Int_val(root), Comm_val(comm));
+             reduce_op[Int_val(op)], Int_val(root), Comm_val(comm));
   return caml_copy_double(r);
 }
 
@@ -304,9 +521,33 @@ value caml_mpi_reduce_floatarray(value data, value result, value op,
   double * res = caml_mpi_output_floatarray(result, len);
 
   MPI_Reduce(d, res, len, MPI_DOUBLE,
-             reduce_floatop[Int_val(op)], Int_val(root), Comm_val(comm));
+             reduce_op[Int_val(op)], Int_val(root), Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
+  return Val_unit;
+}
+
+value caml_mpi_reduce_bigarray(value data, value result, value op,
+                               value root, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  MPI_Comm c = Comm_val(comm);
+  int rank;
+  mlsize_t dlen = caml_ba_num_elts(d);
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+  void* sendbuf = d->data;
+
+  MPI_Comm_rank(c, &rank);
+  if (rank == root) {
+    if (dlen != caml_ba_num_elts(r))
+      caml_mpi_raise_error("Mpi.reduce_bigarray: array size mismatch");
+
+    if (d->data == r->data) sendbuf = MPI_IN_PLACE;
+  }
+
+  MPI_Reduce(sendbuf, r->data, dlen, dt,
+             reduce_op[Int_val(op)], Int_val(root), c);
   return Val_unit;
 }
 
@@ -317,7 +558,7 @@ value caml_mpi_allreduce_int(value data, value op, value comm)
   long d = Long_val(data);
   long r;
   MPI_Allreduce(&d, &r, 1, MPI_LONG,
-                reduce_intop[Int_val(op)], Comm_val(comm));
+                reduce_op[Int_val(op)], Comm_val(comm));
   return Val_long(r);
 }
 
@@ -329,7 +570,7 @@ value caml_mpi_allreduce_intarray(value data, value result, value op,
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
   MPI_Allreduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
-                reduce_intop[Int_val(op)], Comm_val(comm));
+                reduce_op[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
   /* Re-encode result at all nodes in place */
@@ -342,7 +583,7 @@ value caml_mpi_allreduce_float(value data, value op, value comm)
   double d = Double_val(data);
   double r;
   MPI_Allreduce(&d, &r, 1, MPI_DOUBLE,
-                reduce_floatop[Int_val(op)], Comm_val(comm));
+                reduce_op[Int_val(op)], Comm_val(comm));
   return caml_copy_double(r);
 }
 
@@ -354,9 +595,26 @@ value caml_mpi_allreduce_floatarray(value data, value result, value op,
   double * res = caml_mpi_output_floatarray(result, len);
 
   MPI_Allreduce(d, res, len, MPI_DOUBLE,
-                reduce_floatop[Int_val(op)], Comm_val(comm));
+                reduce_op[Int_val(op)], Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
+  return Val_unit;
+}
+
+value caml_mpi_allreduce_bigarray(value data, value result, value op,
+                                  value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  mlsize_t dlen = caml_ba_num_elts(d);
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+  void* sendbuf = (d->data == r->data) ? MPI_IN_PLACE : d->data;
+
+  if (caml_ba_num_elts(r) != dlen)
+    caml_mpi_raise_error("Mpi.allreduce_bigarray: array size mismatch");
+
+  MPI_Allreduce(sendbuf, r->data, dlen, dt,
+		reduce_op[Int_val(op)], Comm_val(comm));
   return Val_unit;
 }
 
@@ -367,7 +625,7 @@ value caml_mpi_scan_int(value data, value op, value comm)
   long d = Long_val(data);
   long r;
 
-  MPI_Scan(&d, &r, 1, MPI_LONG, reduce_intop[Int_val(op)], Comm_val(comm));
+  MPI_Scan(&d, &r, 1, MPI_LONG, reduce_op[Int_val(op)], Comm_val(comm));
   return Val_long(r);
 }
 
@@ -379,7 +637,7 @@ value caml_mpi_scan_intarray(value data, value result, value op, value comm)
   caml_mpi_decode_intarray(data, len);
   /* Do the scan */
   MPI_Scan(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
-           reduce_intop[Int_val(op)], Comm_val(comm));
+           reduce_op[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
   /* Encode result */
@@ -392,7 +650,7 @@ value caml_mpi_scan_float(value data, value op, value comm)
   double d = Double_val(data), r;
 
   MPI_Scan(&d, &r, 1, MPI_DOUBLE,
-           reduce_floatop[Int_val(op)], Comm_val(comm));
+           reduce_op[Int_val(op)], Comm_val(comm));
   return caml_copy_double(r);
 }
 
@@ -403,9 +661,25 @@ value caml_mpi_scan_floatarray(value data, value result, value op, value comm)
   double * res = caml_mpi_output_floatarray(result, len);
 
   MPI_Scan(d, res, len, MPI_DOUBLE,
-           reduce_floatop[Int_val(op)], Comm_val(comm));
+           reduce_op[Int_val(op)], Comm_val(comm));
   caml_mpi_free_floatarray(d);
   caml_mpi_commit_floatarray(res, result, len);
+  return Val_unit;
+}
+
+value caml_mpi_scan_bigarray(value data, value result, value op, value comm)
+{
+  struct caml_ba_array* d = Caml_ba_array_val(data);
+  struct caml_ba_array* r = Caml_ba_array_val(result);
+  mlsize_t dlen = caml_ba_num_elts(d);
+  MPI_Datatype dt = caml_mpi_ba_mpi_type[d->flags & CAML_BA_KIND_MASK];
+  void* sendbuf = (d->data == r->data) ? MPI_IN_PLACE : d->data;
+
+  if (caml_ba_num_elts(r) != dlen)
+    caml_mpi_raise_error("Mpi.scan_bigarray: array size mismatch");
+
+  MPI_Scan(sendbuf, r->data, dlen, dt,
+           reduce_op[Int_val(op)], Comm_val(comm));
   return Val_unit;
 }
 
