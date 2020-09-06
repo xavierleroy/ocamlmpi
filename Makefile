@@ -2,8 +2,8 @@ OCAMLC=ocamlc
 OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
 
-MPIINCDIR=/usr/include/mpi
-MPILIBDIR=/usr/lib
+MPIINCDIR=$(shell pkg-config --variable=includedir mpich)
+MPILIBDIR=$(shell pkg-config --variable=libdir mpich)
 MPICC=mpicc
 MPIRUN=mpirun
 
