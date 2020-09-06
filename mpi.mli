@@ -382,23 +382,31 @@ type _ op =
   | Land : [< `Int ] op
   | Lor  : [< `Int ] op
   | Xor  : [< `Int ] op
-  | Int_max  : [< `Int ] op [@deprecated]
-  | Int_min  : [< `Int ] op [@deprecated]
-  | Int_sum  : [< `Int ] op [@deprecated]
-  | Int_prod : [< `Int ] op [@deprecated]
-  | Int_land : [< `Int ] op [@deprecated]
-  | Int_lor  : [< `Int ] op [@deprecated]
-  | Int_xor  : [< `Int ] op [@deprecated]
-  | Float_max  : [< `Float ] op [@deprecated]
-  | Float_min  : [< `Float ] op [@deprecated]
-  | Float_sum  : [< `Float ] op [@deprecated]
-  | Float_prod : [< `Float ] op [@deprecated]
+  | Int_max  : [< `Int ] op
+  | Int_min  : [< `Int ] op
+  | Int_sum  : [< `Int ] op
+  | Int_prod : [< `Int ] op
+  | Int_land : [< `Int ] op
+  | Int_lor  : [< `Int ] op
+  | Int_xor  : [< `Int ] op
+  | Float_max  : [< `Float ] op
+  | Float_min  : [< `Float ] op
+  | Float_sum  : [< `Float ] op
+  | Float_prod : [< `Float ] op
   (* The operations that can be performed by a reduce or scan; some of
      them are only valid for integers. [Max] and [Min]
      are maximum and minimum; [Sum] and [Prod]
      are summation ([+]) and product ([*]).
      [Land], [Lor] and [Xor] are logical (bit-per-bit) and,
-     or and exclusive-or. *)
+     or and exclusive-or.
+
+     The constructors prefixed by [Int_] or [Float_]
+     (e.g. [Int_max], [Float_sum]) are type-specialized variants of
+     the non-prefixed constructors.  For example, [Int_max] is [Max]
+     specialized to integer values, and [Float_sum] is [Sum]
+     specialized to floating-point values.  These specialized
+     constructors are included for backward compatibility with earlier
+     versions of this library.  They will be deprecated in the future. *)
 
 val reduce_int: int -> [`Int] op -> rank -> communicator -> int
 val reduce_float: float -> [`Float] op -> rank -> communicator -> float
@@ -434,7 +442,7 @@ val reduce_bigarray3:
            are combined using [op] and the result is stored into [dst.(i)]
            at node [root]. For [Mpi.reduce_bigarray*] applied to an array
            of floating-point values, an exception is raised for the
-           [Int_land], [Int_lor] and [Int_xor] operations and the others
+           [Land], [Lor] and [Xor] operations and the others
            are interpreted as floating-point operations. *)
 
 (** Reduce to all *)
@@ -463,8 +471,8 @@ val allreduce_bigarray3:
            corresponding [Mpi.reduce_*] operations, except that the result
            of the reduction is made available at all nodes.
            For [Mpi.allreduce_bigarray*] applied to an array of floating-point
-           values, an exception is raised for the [Int_land], [Int_lor]
-           and [Int_xor] operations and the others are interpreted as
+           values, an exception is raised for the [Land], [Lor]
+           and [Xor] operations and the others are interpreted as
            floating-point operations. *)
 
 (** Scan *)
@@ -499,7 +507,7 @@ val scan_bigarray3:
            argument).  The result is stored in the array passed as second
            argument at the root node. For [Mpi.scan_bigarray*] applied to
            an array of floating-point values, an exception is raised for
-           the [Int_land], [Int_lor] and [Int_xor] operations and the
+           the [Land], [Lor] and [Xor] operations and the
            others are interpreted as floating-point operations. *)
 
 (*** Advanced operations on communicators *)
