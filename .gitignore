@@ -3,6 +3,8 @@
 *.cmxa
 *.cmxs
 *.o
+*.cmt
+*.cmti
 testmpi
 testmpinb
 test_mandel

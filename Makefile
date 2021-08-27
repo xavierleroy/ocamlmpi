@@ -1,4 +1,5 @@
 OCAMLC=ocamlc
+OCAMLFLAGS=-g -bin-annot
 OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
 
@@ -15,7 +16,7 @@ OBJS=mpi.cmo
 all: libcamlmpi.a byte
 
 install:
-	ocamlfind install mpi META mpi.mli mpi.cmi \
+	ocamlfind install mpi META mpi.mli mpi.cmi mpi.cmti \
 	    $(wildcard mpi*.cmx) $(wildcard mpi.cm*a) $(wildcard *mpi.a)
 
 uninstall:
@@ -34,11 +35,11 @@ opt: $(OBJS:.cmo=.cmx)
 .SUFFIXES: .ml .mli .cmo .cmi .cmx
 
 .ml.cmo:
-	$(OCAMLC) -c $<
+	$(OCAMLC) $(OCAMLFLAGS) -c $<
 .mli.cmi:
-	$(OCAMLC) -c $<
+	$(OCAMLC) $(OCAMLFLAGS) -c $<
 .ml.cmx:
-	$(OCAMLOPT) -c $<
+	$(OCAMLOPT) $(OCAMLFLAGS) -c $<
 
 testmpi: test.ml mpi.cma libcamlmpi.a
 	ocamlc -g -o testmpi unix.cma bigarray.cma mpi.cma test.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
