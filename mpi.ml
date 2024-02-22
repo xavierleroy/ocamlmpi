@@ -21,6 +21,7 @@ exception Error of string
 let ba_kind_is_float (type a b) (k : (a, b) Bigarray.kind) =
   let open Bigarray in
   match k with
+  | Float16 -> true
   | Float32 -> true
   | Float64 -> true
   | Complex32 -> true
