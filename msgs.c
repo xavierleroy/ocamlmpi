@@ -67,7 +67,7 @@ value caml_mpi_send_int(value data, value dest, value tag, value comm)
 
 value caml_mpi_send_intarray(value data, value dest, value tag, value comm)
 {
-  MPI_Send(&Field(data, 0), Wosize_val(data), MPI_LONG,
+  MPI_Send(Longptr_val(data), Wosize_val(data), MPI_LONG,
            Int_val(dest), Int_val(tag), Comm_val(comm));
   return Val_unit;
 }
@@ -169,7 +169,7 @@ value caml_mpi_receive_intarray(value data, value source, value tag, value comm)
 {
   MPI_Status status;
 
-  MPI_Recv(&Field(data, 0), Wosize_val(data), MPI_LONG,
+  MPI_Recv(Longptr_val(data), Wosize_val(data), MPI_LONG,
            Int_val(source), Int_val(tag), Comm_val(comm), &status);
   return Val_unit;
 }

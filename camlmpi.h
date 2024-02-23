@@ -37,6 +37,12 @@ value caml_mpi_ba_value(any_ba_value(dv), intnat kind);
 void caml_mpi_ba_element(value dv, intnat kind, any_ba_value(rv));
 // integer kind: returns 0; floating-point kind: returns 1
 
+// Pointer to an array of OCaml integers
+
+#define Longptr_val(v) ((value *) &Field(v, 0))
+
+// Handling of float arrays
+
 #ifdef ARCH_ALIGN_DOUBLE
 
 extern double * caml_mpi_input_floatarray(value data, mlsize_t len);

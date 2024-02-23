@@ -55,7 +55,7 @@ value caml_mpi_broadcast_float(value data, value root, value comm)
 
 value caml_mpi_broadcast_intarray(value data, value root, value comm)
 {
-  MPI_Bcast(&Field(data, 0), Wosize_val(data), MPI_LONG,
+  MPI_Bcast(Longptr_val(data), Wosize_val(data), MPI_LONG,
             Int_val(root), Comm_val(comm));
   return Val_unit;
 }
@@ -123,7 +123,7 @@ value caml_mpi_scatter_int(value data, value root, value comm)
 {
   value n;
 
-  MPI_Scatter(&Field(data, 0), 1, MPI_LONG,
+  MPI_Scatter(Longptr_val(data), 1, MPI_LONG,
               &n, 1, MPI_LONG,
               Int_val(root), Comm_val(comm));
   return n;
@@ -166,8 +166,8 @@ value caml_mpi_scatter_intarray(value source, value dest,
                                 value root, value comm)
 {
   mlsize_t len = Wosize_val(dest);
-  MPI_Scatter(&Field(source, 0), len, MPI_LONG,
-              &Field(dest, 0), len, MPI_LONG,
+  MPI_Scatter(Longptr_val(source), len, MPI_LONG,
+              Longptr_val(dest), len, MPI_LONG,
               Int_val(root), Comm_val(comm));
   return Val_unit;
 }
@@ -230,7 +230,7 @@ value caml_mpi_gather(value sendbuf,
 value caml_mpi_gather_int(value data, value result, value root, value comm)
 {
   MPI_Gather(&data, 1, MPI_LONG,
-             &Field(result, 0), 1, MPI_LONG,
+             Longptr_val(result), 1, MPI_LONG,
              Int_val(root), Comm_val(comm));
   return Val_unit;
 }
@@ -239,8 +239,8 @@ value caml_mpi_gather_intarray(value data, value result,
                                value root, value comm)
 {
   mlsize_t len = Wosize_val(data);
-  MPI_Gather(&Field(data, 0), len, MPI_LONG,
-             &Field(result, 0), len, MPI_LONG,
+  MPI_Gather(Longptr_val(data), len, MPI_LONG,
+             Longptr_val(result), len, MPI_LONG,
              Int_val(root), Comm_val(comm));
   return Val_unit;
 }
@@ -323,7 +323,7 @@ value caml_mpi_allgather(value sendbuf,
 value caml_mpi_allgather_int(value data, value result, value comm)
 {
   MPI_Allgather(&data, 1, MPI_LONG,
-                &Field(result, 0), 1, MPI_LONG,
+                Longptr_val(result), 1, MPI_LONG,
                 Comm_val(comm));
   return Val_unit;
 }
@@ -331,8 +331,8 @@ value caml_mpi_allgather_int(value data, value result, value comm)
 value caml_mpi_allgather_intarray(value data, value result, value comm)
 {
   mlsize_t len = Wosize_val(data);
-  MPI_Allgather(&Field(data, 0), len, MPI_LONG,
-                &Field(result, 0), len, MPI_LONG,
+  MPI_Allgather(Longptr_val(data), len, MPI_LONG,
+                Longptr_val(result), len, MPI_LONG,
                 Comm_val(comm));
   return Val_unit;
 }
@@ -414,8 +414,8 @@ value caml_mpi_alltoall_intarray(value data, value result, value comm)
   mlsize_t len = Wosize_val(data);
   MPI_Comm c = Comm_val(comm);
   int csize, count;
-  void* sendbuf = &Field(data, 0);
-  void* recvbuf = &Field(result, 0);
+  void* sendbuf = Longptr_val(data);
+  void* recvbuf = Longptr_val(result);
 
   MPI_Comm_size(c, &csize);
   count = len / csize;
@@ -494,7 +494,7 @@ value caml_mpi_reduce_intarray(value data, value result, value op,
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
-  MPI_Reduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
+  MPI_Reduce(Longptr_val(data), Longptr_val(result), len, MPI_LONG,
              reduce_op[Int_val(op)], Int_val(root), Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
@@ -569,7 +569,7 @@ value caml_mpi_allreduce_intarray(value data, value result, value op,
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the reduce */
-  MPI_Allreduce(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
+  MPI_Allreduce(Longptr_val(data), Longptr_val(result), len, MPI_LONG,
                 reduce_op[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
@@ -636,7 +636,7 @@ value caml_mpi_scan_intarray(value data, value result, value op, value comm)
   /* Decode data at all nodes in place */
   caml_mpi_decode_intarray(data, len);
   /* Do the scan */
-  MPI_Scan(&Field(data, 0), &Field(result, 0), len, MPI_LONG,
+  MPI_Scan(Longptr_val(data), Longptr_val(result), len, MPI_LONG,
            reduce_op[Int_val(op)], Comm_val(comm));
   /* Re-encode data at all nodes in place */
   caml_mpi_encode_intarray(data, len);
