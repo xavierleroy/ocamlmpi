@@ -41,17 +41,24 @@ opt: $(OBJS:.cmo=.cmx)
 .ml.cmx:
 	$(OCAMLOPT) $(OCAMLFLAGS) -c $<
 
+ifeq (old,$(patsubst 4.%,old,$(shell $(OCAMLC) -version)))
+OCAMLC_LIBS=unix.cma bigarray.cma
+else
+OCAMLC_LIBS=-I +unix unix.cma
+endif
+
 testmpi: test.ml mpi.cma libcamlmpi.a
-	ocamlc -g -o testmpi unix.cma bigarray.cma mpi.cma test.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
+	$(OCAMLC) -g -o testmpi $(OCAMLC_LIBS) mpi.cma test.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
 
 testmpinb: testnb.ml mpi.cma libcamlmpi.a
-	ocamlc -cc $(CC) -g -o testmpinb unix.cma bigarray.cma mpi.cma testnb.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
+	$(OCAMLC) -cc $(CC) -g -o testmpinb $(OCAMLC_LIBS) mpi.cma testnb.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
 
 clean::
 	rm -f testmpi
 
-test: testmpi
+test: testmpi testmpinb
 	$(MPIRUN) -np 5 ./testmpi
+	$(MPIRUN) -np 5 ./testmpinb
 
 test_mandel: test_mandel.ml mpi.cmxa libcamlmpi.a
 	ocamlfind ocamlopt -package graphics -linkpkg -o test_mandel mpi.cmxa test_mandel.ml -ccopt -L.
