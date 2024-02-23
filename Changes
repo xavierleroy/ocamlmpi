@@ -1,3 +1,6 @@
+- Remove unused code that breaks in OCaml 5.2 (#12)
+- Improved compatibility with OCaml 5.0 and up
+
 Version 1.05:
 - Add support for communicating bigarrays (#9) (Timothy Bourke)
 - Nicer GADT-based interface for reduce operations  (#9) (Timothy Bourke)
