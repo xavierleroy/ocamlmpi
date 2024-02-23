@@ -18,23 +18,6 @@
 
 exception Error of string
 
-let ba_kind_is_float (type a b) (k : (a, b) Bigarray.kind) =
-  let open Bigarray in
-  match k with
-  | Float32 -> true
-  | Float64 -> true
-  | Complex32 -> true
-  | Complex64 -> true
-  | Int8_signed -> false
-  | Int8_unsigned -> false
-  | Int16_signed -> false
-  | Int16_unsigned -> false
-  | Int32 -> false
-  | Int64 -> false
-  | Int -> false
-  | Nativeint -> false
-  | Char -> false
-
 let mpi_error s = raise(Error s)
 
 external init : string array -> unit = "caml_mpi_init"
