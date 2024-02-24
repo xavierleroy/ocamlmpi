@@ -1,3 +1,4 @@
+Version 1.06:
 - Remove unused code that breaks in OCaml 5.2 (#12)
 - Improved compatibility with OCaml 5.0 and up
 

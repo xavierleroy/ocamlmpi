@@ -1,5 +1,5 @@
 opam-version: "2.0"
-version: "1.03"
+version: "1.06"
 maintainer: "xavier.leroy@inria.fr"
 authors: ["Xavier Leroy"]
 homepage: "https://github.com/xavierleroy/ocamlmpi"
@@ -22,4 +22,4 @@ depends: [
   "conf-mpi"
   "ocamlfind" {build}
 ]
-synopsis: "OCaml binding to the Message Passing Interface (MPI)"
+synopsis: "OCaml binding to the MPI (Message Passing Interface) standard"
