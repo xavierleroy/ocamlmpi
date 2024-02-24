@@ -54,7 +54,7 @@ testmpinb: testnb.ml mpi.cma libcamlmpi.a
 	$(OCAMLC) -cc $(CC) -g -o testmpinb $(OCAMLC_LIBS) mpi.cma testnb.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
 
 clean::
-	rm -f testmpi
+	rm -f testmpi testmpinb
 
 test: testmpi testmpinb
 	$(MPIRUN) -np 5 ./testmpi
