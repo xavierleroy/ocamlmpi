@@ -1,5 +1,8 @@
 Version 1.06:
-- Remove unused code that breaks in OCaml 5.2 (#12)
+- Removed unused code that breaks in OCaml 5.2 (#12)
+- Removed error handler that turns some MPI fatal errors into OCaml exceptions,
+  it was raising an OCaml exception from within a blocking section,
+  which is unsupported.
 - Improved compatibility with OCaml 5.0 and up
 
 Version 1.05:
