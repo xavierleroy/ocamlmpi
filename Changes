@@ -3,7 +3,7 @@ Version 1.06:
 - Removed error handler that turns some MPI fatal errors into OCaml exceptions,
   it was raising an OCaml exception from within a blocking section,
   which is unsupported
-- Fix issue with OCaml's memmory-cleanup-at-exit mode
+- Fix issue with OCaml's memory-cleanup-at-exit mode
 - Improved compatibility with OCaml 5.0 and up
 
 Version 1.05:
