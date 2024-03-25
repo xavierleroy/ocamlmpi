@@ -53,7 +53,7 @@ value caml_mpi_send(value data, value flags,
   caml_enter_blocking_section();
   MPI_Send(buffer, len, MPI_BYTE, Int_val(dest), Int_val(tag), comm);
   caml_leave_blocking_section();
-  caml_stat_free(buffer);
+  free(buffer);
   CAMLreturn(Val_unit);
 }
 
@@ -232,7 +232,7 @@ static void caml_mpi_finalize_request(value v)
   /*else
     printf("null request isn't freed\n");*/
   if (Buffer_req_val(v))
-    caml_stat_free(Buffer_req_val(v)); /* free buffer */
+    free(Buffer_req_val(v)); /* free buffer */
   /*printf("done");*/
 }
 
