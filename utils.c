@@ -15,6 +15,7 @@
 
 /* Utility functions on arrays */
 
+#include <string.h>
 #include <mpi.h>
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
@@ -123,26 +124,26 @@ void caml_mpi_ba_element(value dv, intnat kind, any_ba_value(rv))
 
 double * caml_mpi_input_floatarray(value data, mlsize_t len)
 {
-  double * d = stat_alloc(len * sizeof(double));
-  bcopy((double *) data, d, len * sizeof(double));
+  double * d = caml_stat_alloc(len * sizeof(double));
+  memcpy(d, (double *) data, len * sizeof(double));
   return d;
 }
 
 double * caml_mpi_output_floatarray(value data, mlsize_t len)
 {
-  return stat_alloc(len * sizeof(double));
+  return caml_stat_alloc(len * sizeof(double));
 }
 
 void caml_mpi_free_floatarray(double * d)
 {
-  if (d != NULL) stat_free(d);
+  if (d != NULL) caml_stat_free(d);
 }
 
 void caml_mpi_commit_floatarray(double * d, value data, mlsize_t len)
 {
   if (d != NULL) {
-    bcopy(d, (double *) data, len * sizeof(double));
-    stat_free(d);
+    memcpy((double *) data, d, len * sizeof(double));
+    caml_stat_free(d);
   }
 }
 
