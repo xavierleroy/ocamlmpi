@@ -19,6 +19,7 @@
 #define Group_val(grp) (*((MPI_Group *) &Field(grp, 1)))
 #define Request_req_val(req) (*((MPI_Request *) &Field(req, 1)))
 #define Buffer_req_val(req)   (*((char **) &Field(req, 2)))
+#define Buffer_req_len(req)   (*((size_t *) &Field(req, 3)))
 
 extern void caml_mpi_raise_error(const char *msg);
 extern value caml_mpi_alloc_comm(MPI_Comm c);

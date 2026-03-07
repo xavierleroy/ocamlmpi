@@ -22,12 +22,12 @@
 #include <caml/memory.h>
 #include <caml/signals.h>
 #include <caml/bigarray.h>
+#include <caml/custom.h>
+#include <caml/version.h>
 #include <stdio.h>
 #include "camlmpi.h"
 
 #define Val_none Val_int(0)
-
-/*#define Some_val(v) Field(v,0)*/
 
 static inline value Val_some( value v )
 {
@@ -37,6 +37,16 @@ static inline value Val_some( value v )
   Store_field( some, 0, v );
   CAMLreturn( some );
 }
+
+/* caml_input_value_from_malloc got an extra argument in 5.4.1 */
+
+#if OCAML_VERSION >= 50401
+#define Caml_input_value_from_malloc(data, ofs, len) \
+       caml_input_value_from_malloc(data, ofs, len)
+#else
+#define Caml_input_value_from_malloc(data, ofs, len) \
+       caml_input_value_from_malloc(data, ofs)
+#endif
 
 /* Sending */
 
@@ -148,7 +158,7 @@ value caml_mpi_receive(value vlen, value source, value tag, value vcomm)
   MPI_Recv(buffer, len, MPI_BYTE,
            Int_val(source), Int_val(tag), comm, &status);
   caml_leave_blocking_section();
-  res = caml_input_value_from_malloc(buffer, 0);
+  res = Caml_input_value_from_malloc(buffer, 0, len);
     /* This also deallocates the buffer */
   CAMLreturn(res);
 }
@@ -239,28 +249,13 @@ static void caml_mpi_finalize_request(value v)
 value caml_mpi_alloc_request() 
 {
   /*printf("alloc req..");*/
-  value res = caml_alloc_final(3, caml_mpi_finalize_request, 1, 100);
+  value res = caml_alloc_final(4, caml_mpi_finalize_request, 1, 100);
   Request_req_val(res) = MPI_REQUEST_NULL;
   Buffer_req_val(res) = 0;
+  Buffer_req_len(res) = 0;
   /*printf("done\n");*/ 
   return(res);
 }
-
-/*
-static void caml_mpi_status(value v)
-{
-  MPI_Status_free(&Comm_val(v));
-}
-
-value caml_mpi_alloc_status(MPI_Request r)
-{
-  value res =
-    alloc_final(1 + (sizeof(MPI_est) + sizeof(value) - 1) / sizeof(value),
-                caml_mpi_finalize_request, 1, 100);
-  Request_val(res) = r;
-  return res;
-}
-*/
 
 value caml_mpi_isend(value data, value flags,
                      value dest, value tag, value vcomm)
@@ -278,6 +273,7 @@ value caml_mpi_isend(value data, value flags,
             &Request_req_val(req));
   caml_leave_blocking_section();
   Buffer_req_val(req) = buffer; // store send buffer address 
+  Buffer_req_len(req) = len;    // and length
   CAMLreturn(req);
 }
 
@@ -300,7 +296,9 @@ value caml_mpi_isend_varlength(value data, value flags,
   lenbuf = malloc(sizeof(long));
   *lenbuf = len;
   Buffer_req_val(lenreq) = (char*)lenbuf;
+  Buffer_req_len(lenreq) = sizeof(long);
   Buffer_req_val(datareq) = buffer; // store send buffer address
+  Buffer_req_len(datareq) = len;    // and length
   caml_enter_blocking_section();
   MPI_Isend(Buffer_req_val(lenreq), 1, MPI_INT,
        	    Int_val(dest), Int_val(tag), comm, &Request_req_val(lenreq));
@@ -322,6 +320,7 @@ value caml_mpi_ireceive(value vlen, value src, value tag, value vcomm)
   MPI_Comm comm = Comm_val(vcomm);
   datareq = caml_mpi_alloc_request();
   Buffer_req_val(datareq) = buffer = malloc(len);
+  Buffer_req_len(datareq) = len;
   caml_enter_blocking_section();
   MPI_Irecv(buffer, len, MPI_BYTE, Int_val(src), Int_val(tag), comm, 
             &Request_req_val(datareq));
@@ -344,6 +343,7 @@ value caml_mpi_ireceive_varlength(value src, value tag, value vcomm)
   MPI_Recv(&len, 1, MPI_INT, Int_val(src), Int_val(tag), comm, &status);
   caml_leave_blocking_section(); 
   Buffer_req_val(datareq) = buffer = malloc(len);
+  Buffer_req_len(datareq) = len;
   caml_enter_blocking_section();
   MPI_Irecv(buffer, len, MPI_BYTE, Int_val(src), Int_val(tag), comm, 
             &Request_req_val(datareq));
@@ -380,7 +380,9 @@ value caml_mpi_wait_receive(value req)
   if (ret!=MPI_SUCCESS)
    printf("ERROR: wait error!\n");
   caml_leave_blocking_section();
-  result = caml_input_value_from_malloc(Buffer_req_val(req), 0);
+  result =
+    Caml_input_value_from_malloc(Buffer_req_val(req), 0, Buffer_req_len(req));
   Buffer_req_val(req) = 0; /* above deallocates buffer */
+  Buffer_req_len(req) = 0;
   CAMLreturn(result);
 }
