@@ -57,13 +57,12 @@ That is:
 
 # Building OCamlMPI
 
-If MPI is installed in the standard locations, just do
+If you are using OpenMPI and it is installed via pkg-config, just do
 
        make all opt
 
-If MPI headers and libraries cannot be found, you may need to edit the
-Makefile and set the following variables according to your MPI
-installation:
+Otherwise, you may need to edit the Makefile and set the following
+variables according to your MPI installation:
 
 - `MPIINCDIR`    directory containing the MPI include file `<mpi.h>`
 - `MPILIBDIR`    directory containing the MPI library `-lmpi`
