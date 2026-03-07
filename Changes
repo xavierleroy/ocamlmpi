@@ -1,3 +1,7 @@
+Version 1.07:
+- Ensure compatibility with OCaml >= 5.4.1 (#13)
+- Clean up the allocation of finalized data types.
+
 Version 1.06:
 - Removed unused code that breaks in OCaml 5.2 (#12)
 - Removed error handler that turns some MPI fatal errors into OCaml exceptions,

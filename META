@@ -1,5 +1,5 @@
 description = "Bindings for MPI"
-version = "1.01"
+version = "1.07"
 browse_interface = " MPI "
 archive(byte) = "mpi.cma"
 archive(native) = "mpi.cmxa"
