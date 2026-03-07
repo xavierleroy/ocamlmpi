@@ -16,13 +16,13 @@
 /* Point-to-point communication */
 
 #include <mpi.h>
-#include <caml/mlvalues.h>
 #include <caml/alloc.h>
-#include <caml/intext.h>
-#include <caml/memory.h>
-#include <caml/signals.h>
 #include <caml/bigarray.h>
 #include <caml/custom.h>
+#include <caml/intext.h>
+#include <caml/memory.h>
+#include <caml/mlvalues.h>
+#include <caml/signals.h>
 #include <caml/version.h>
 #include <stdio.h>
 #include "camlmpi.h"
@@ -246,10 +246,18 @@ static void caml_mpi_finalize_request(value v)
   /*printf("done");*/
 }
 
+static const struct custom_operations caml_mpi_request_ops = {
+  "mpi.request",
+  caml_mpi_finalize_request,
+  /* all other operations as NULL */
+};
+
 value caml_mpi_alloc_request() 
 {
   /*printf("alloc req..");*/
-  value res = caml_alloc_final(4, caml_mpi_finalize_request, 1, 100);
+  value res =
+    caml_alloc_custom(&caml_mpi_request_ops,
+                      sizeof(struct async_request), 0, 1);
   Request_req_val(res) = MPI_REQUEST_NULL;
   Buffer_req_val(res) = 0;
   Buffer_req_len(res) = 0;

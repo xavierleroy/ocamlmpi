@@ -18,6 +18,7 @@
 #include <mpi.h>
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
+#include <caml/custom.h>
 #include <caml/memory.h>
 #include "camlmpi.h"
 
@@ -26,11 +27,15 @@ static void caml_mpi_finalize_comm(value v)
   MPI_Comm_free(&Comm_val(v));
 }
 
+static const struct custom_operations caml_mpi_comm_ops = {
+  "mpi.communicator",
+  caml_mpi_finalize_comm,
+  /* all other operations as NULL */
+};
+
 value caml_mpi_alloc_comm(MPI_Comm c)
 {
-  value res =
-    caml_alloc_final(1 + (sizeof(MPI_Comm) + sizeof(value) - 1) / sizeof(value),
-                     caml_mpi_finalize_comm, 1, 100);
+  value res = caml_alloc_custom(&caml_mpi_comm_ops, sizeof(MPI_Comm), 0, 1);
   Comm_val(res) = c;
   return res;
 }

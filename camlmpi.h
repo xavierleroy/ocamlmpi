@@ -15,11 +15,21 @@
 
 /* Common definitions */
 
-#define Comm_val(comm) (*((MPI_Comm *) &Field(comm, 1)))
-#define Group_val(grp) (*((MPI_Group *) &Field(grp, 1)))
-#define Request_req_val(req) (*((MPI_Request *) &Field(req, 1)))
-#define Buffer_req_val(req)   (*((char **) &Field(req, 2)))
-#define Buffer_req_len(req)   (*((size_t *) &Field(req, 3)))
+#define Comm_val(comm) (*((MPI_Comm *) Data_custom_val(comm)))
+#define Group_val(grp) (*((MPI_Group *) Data_custom_val(grp)))
+
+struct async_request {
+  MPI_Request req;
+  char * buf;
+  size_t len;
+};
+
+#define Request_req_val(v) \
+ (((struct async_request *) Data_custom_val(v))->req)
+#define Buffer_req_val(v) \
+ (((struct async_request *) Data_custom_val(v))->buf)
+#define Buffer_req_len(v) \
+ (((struct async_request *) Data_custom_val(v))->len)
 
 extern void caml_mpi_raise_error(const char *msg);
 extern value caml_mpi_alloc_comm(MPI_Comm c);

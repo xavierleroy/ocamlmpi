@@ -18,6 +18,7 @@
 #include <mpi.h>
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
+#include <caml/custom.h>
 #include <caml/memory.h>
 #include "camlmpi.h"
 
@@ -26,11 +27,15 @@ static void caml_mpi_finalize_group(value v)
   MPI_Group_free(&Group_val(v));
 }
 
+static const struct custom_operations caml_mpi_group_ops = {
+  "mpi.group",
+  caml_mpi_finalize_group,
+  /* all other operations as NULL */
+};
+
 value caml_mpi_alloc_group(MPI_Group g)
 {
-  value res =
-    caml_alloc_final(1 + (sizeof(MPI_Group) + sizeof(value) - 1) / sizeof(value),
-                     caml_mpi_finalize_group, 1, 100);
+  value res = caml_alloc_custom(&caml_mpi_group_ops, sizeof(MPI_Group), 0, 1);
   Group_val(res) = g;
   return res;
 }
