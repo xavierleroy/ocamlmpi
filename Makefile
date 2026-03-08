@@ -2,37 +2,43 @@ OCAMLC=ocamlc
 OCAMLFLAGS=-g -bin-annot
 OCAMLOPT=ocamlopt
 OCAMLDEP=ocamldep
+OCAMLMKLIB=ocamlmklib -g -failsafe
 
 MPIINCDIR=$(shell pkg-config --variable=includedir ompi)
 MPILIBDIR=$(shell pkg-config --variable=libdir ompi)
 MPICC=mpicc
 MPIRUN=mpirun
 
-CFLAGS=-I`$(OCAMLC) -where` -I$(MPIINCDIR) -O2 -g -Wall -DCAML_NAME_SPACE
+CFLAGS=-I$(MPIINCDIR) -O2 -g -Wall -DCAML_NAME_SPACE
 
 COBJS=init.o comm.o msgs.o collcomm.o groups.o utils.o
-OBJS=mpi.cmo
+BYTEOBJS=mpi.cmo
+NATOBJS=$(BYTEOBJS:.cmo=.cmx)
 
-all: libcamlmpi.a byte
+all: byte
+
+byte: libcamlmpi.a mpi.cma
+
+opt: libcamlmpi.a mpi.cmxa
 
 install:
 	ocamlfind install mpi META mpi.mli mpi.cmi mpi.cmti \
-	    $(wildcard mpi*.cmx) $(wildcard mpi.cm*a) $(wildcard *mpi.a)
+          $(wildcard mpi*.cmx) $(wildcard mpi.cm*a) \
+          $(wildcard *mpi.a) $(wildcard *mpi.so)
 
 uninstall:
 	ocamlfind remove mpi
 
 libcamlmpi.a: $(COBJS)
-	rm -f $@
-	ar rc $@ $(COBJS)
+	$(OCAMLMKLIB) -oc camlmpi $(COBJS) -L$(MPILIBDIR) -lmpi
 
-byte: $(OBJS)
-	$(OCAMLC) -a -o mpi.cma -custom $(OBJS) -cclib -lcamlmpi -ccopt -L$(MPILIBDIR) -cclib -lmpi
+mpi.cma: $(BYTEOBJS)
+	$(OCAMLMKLIB) -o mpi -oc camlmpi $(BYTEOBJS) -L$(MPILIBDIR) -lmpi
 
-opt: $(OBJS:.cmo=.cmx)
-	$(OCAMLOPT) -a -o mpi.cmxa $(OBJS:.cmo=.cmx) -cclib -lcamlmpi -ccopt -L$(MPILIBDIR) -cclib -lmpi
+mpi.cmxa: $(NATOBJS)
+	$(OCAMLMKLIB) -o mpi -oc camlmpi $(NATOBJS) -L$(MPILIBDIR) -lmpi
 
-.SUFFIXES: .ml .mli .cmo .cmi .cmx
+.SUFFIXES: .ml .mli .cmo .cmi .cmx .c .o
 
 .ml.cmo:
 	$(OCAMLC) $(OCAMLFLAGS) -c $<
@@ -40,18 +46,20 @@ opt: $(OBJS:.cmo=.cmx)
 	$(OCAMLC) $(OCAMLFLAGS) -c $<
 .ml.cmx:
 	$(OCAMLOPT) $(OCAMLFLAGS) -c $<
+.c.o:
+	$(OCAMLC) -ccopt "$(CFLAGS)" -c $<
 
 ifeq (old,$(patsubst 4.%,old,$(shell $(OCAMLC) -version)))
-OCAMLC_LIBS=unix.cma bigarray.cma
+OCAMLC_LIBS=unix.cmxa bigarray.cmxa
 else
-OCAMLC_LIBS=-I +unix unix.cma
+OCAMLC_LIBS=-I +unix unix.cmxa
 endif
 
-testmpi: test.ml mpi.cma libcamlmpi.a
-	$(OCAMLC) -g -o testmpi $(OCAMLC_LIBS) mpi.cma test.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
+testmpi: test.ml mpi.cmxa libcamlmpi.a
+	$(OCAMLOPT) -o testmpi $(OCAMLC_LIBS) mpi.cmxa test.ml -ccopt -L.
 
-testmpinb: testnb.ml mpi.cma libcamlmpi.a
-	$(OCAMLC) -cc $(CC) -g -o testmpinb $(OCAMLC_LIBS) mpi.cma testnb.ml -ccopt -L$(MPILIBDIR) -ccopt -L.
+testmpinb: testnb.ml mpi.cmxa libcamlmpi.a
+	$(OCAMLOPT) -o testmpinb $(OCAMLC_LIBS) mpi.cmxa testnb.ml -ccopt -L.
 
 clean::
 	rm -f testmpi testmpinb
@@ -67,7 +75,8 @@ clean::
 	rm -f test_mandel
 
 clean::
-	rm -f *.cm* *.o *.a
+	rm -f *.cm* *.o *.a *.so
+
 depend:
 	$(OCAMLDEP) *.ml > .depend
 	gcc -MM $(CFLAGS) *.c >> .depend

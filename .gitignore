@@ -5,6 +5,7 @@
 *.o
 *.cmt
 *.cmti
+*.so
 testmpi
 testmpinb
 test_mandel
